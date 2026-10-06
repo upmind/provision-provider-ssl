@@ -1,0 +1,63 @@
+# Workflow name
+name: Tests
+
+# Triggers
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+
+# Jobs/Pipelines
+jobs:
+  phpunit:
+    name: 'PHPUnit'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '7.4', '8.0', '8.1', '8.2', '8.3', '8.4' ]
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      - name: "Setup PHP with tools"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "${{ matrix.php }}"
+          tools: composer
+
+      - name: "Get composer cache directory"
+        id: composer-cache
+        run: 'echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT'
+
+      - name: "Cache dependencies"
+        uses: actions/cache@v4
+        with:
+          path: "${{ steps.composer-cache.outputs.dir }}"
+          key: "${{ runner.os }}-php-${{ matrix.php}}-composer-${{ hashFiles('**/composer.json') }}"
+          restore-keys: "${{ runner.os }}-php-${{ matrix.php}}-composer-"
+
+      - name: "Install Composer dependencies"
+        run: composer install --no-ansi --no-interaction --no-progress --no-scripts --prefer-dist
+
+      - name: "Run PHPUnit"
+        run: vendor/bin/phpunit
+
+  php-cs-fixer:
+    name: 'PHP-CS-Fixer'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      # the bundled php-cs-fixer phar supports PHP 7.4 to 8.3
+      - name: "Setup PHP"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+
+      - name: "Check coding standards"
+        run: php bin/php-cs-fixer-v3.phar fix --config=.php-cs-fixer.dist.php --dry-run --diff

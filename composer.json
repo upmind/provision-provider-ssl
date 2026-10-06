@@ -1,0 +1,50 @@
+{
+    "name": "upmind/provision-provider-ssl",
+    "description": "This provision category contains the common functions used in provisioning flows for SSL/TLS certificates on various certificate authority and reseller platforms.",
+    "type": "library",
+    "license": "GPL-3.0-only",
+    "authors": [
+        {
+            "name": "Harry Lewis",
+            "email": "harry@upmind.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Upmind\\ProvisionProviders\\SslCertificates\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Upmind\\ProvisionProviders\\SslCertificates\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "illuminate/support": "5.8.* || ^6.20 || ^10.0 || ^11.0 || ^12.0",
+        "phpseclib/phpseclib": "^3.0",
+        "upmind/provision-provider-base": "^3.7 || ^4.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10",
+        "phpunit/phpunit": "^9.6"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Upmind\\ProvisionProviders\\SslCertificates\\LaravelServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse"
+    }
+}

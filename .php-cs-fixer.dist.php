@@ -1,0 +1,32 @@
+<?php
+
+$finder = PhpCsFixer\Finder::create()
+    ->in([__DIR__ . '/src', __DIR__ . '/tests']);
+
+return (new PhpCsFixer\Config())
+    ->setFinder($finder)
+    ->setRules([
+        '@PSR12' => true,
+        'type_declaration_spaces' => true,
+        'array_syntax' => ['syntax' => 'short'],
+        'concat_space' => ['spacing' => 'one'],
+        'binary_operator_spaces' => ['default' => 'single_space'],
+        'no_extra_blank_lines' => [
+            'tokens' => [
+                'attribute',
+                'break',
+                'case',
+                // 'continue',
+                'curly_brace_block',
+                'default',
+                'extra',
+                'parenthesis_brace_block',
+                // 'return',
+                'square_brace_block',
+                'switch',
+                // 'throw',
+                'use',
+                'use_trait',
+            ],
+        ],
+    ]);
