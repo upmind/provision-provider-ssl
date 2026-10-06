@@ -2,7 +2,9 @@
 
 All notable changes to the package will be documented in this file.
 
-## [1.0.0] - 2026-10-06
+## Unreleased
+
+## [1.0.0](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.0) - 2026-10-06
 
 - Define the `ssl-certificates` provision category: lifecycle functions (`create`, `getInfo`,
   `downloadCertificate`, `restartValidation`, `reissue`, `renew`, `revoke`, `cancel`),
