@@ -149,7 +149,7 @@ These are the acceptance criteria for new providers.
 - Use the `src/Example/` directory as a basic template for the new provider; do **not** copy + paste an existing Provider class because each provider must be implemented differently
 - Implement the Configuration DTO class (used to construct the provider) under the same namespace as the new Provider
 - Add a short `README.md` in the provider directory: its configuration fields and how to find `product_code` values. Link it from the main README's Supported Providers list
-- Implement PSR-3 debug logging of all API requests + responses
+- Implement PSR-3 debug logging of all API requests + responses. Build the HTTP client on `$this->getGuzzleHandlerStack(true)`: it logs through `Helper\RedactingLogger`, which masks private keys, CSRs and credential fields. If the API carries a credential in a field the logger does not know, add the field to `RedactingLogger`
 - Implement all provider functions where possible. E.g., where an operation is not supported by the platform it's fine to throw an error like "Operation not supported"
 - Throw (or re-throw) normal/expected errors (e.g., data/state/auth issues) as a ProvisionFunctionError using `$this->errorResult()` - any other exceptions will be considered unexpected and wrapped in a generic error with a benign message which will be unhelpful to end users
 - Result messages and error messages must be 'safe' for end users/customers to read (not contain potentially sensitive information such as credentials or references to code/classes/files etc) but should still be reasonably helpful. Do **not** expose the name of the reseller/aggregator platform in result/error messages, since these are re-sold as whitelabelled services — the certificate authority/brand is fine where it is part of the product the customer bought
@@ -160,7 +160,7 @@ These are the acceptance criteria for new providers.
 
 ### Certificate-specific
 
-- **Never log private keys or CSRs.** The `private_key` returned by `create()`/`reissue()` is destined for encrypted vault storage; it must not appear in debug data, log messages or error data
+- **Never log private keys.** The `private_key` returned by `create()`/`reissue()` is destined for encrypted vault storage. `RedactingLogger` masks HTTP logs only, so keep the key out of result debug data, error data and any message you log yourself. CSRs are not secret; the logger masks them only to keep logs short
 - **Honour both key custody modes.** When `csr` is given, check it with `$this->assertCsrMatches()`, then submit it unchanged and return neither `csr` nor `private_key`. When it is omitted, generate the key pair + CSR with `Helper\KeyPairHelper` and return both in the result
 - **Always map to the normalized status** (`CertificateInfoResult::STATUS_*`) *and* populate `provider_status` with the raw platform value(s), so no fidelity is lost for support
 - **Return DCV completion data** in the flat `dcv_*` result fields — the file or the DNS record, per the selected method. Once validation has completed, return them as `null` so stale instructions clear from the client area
