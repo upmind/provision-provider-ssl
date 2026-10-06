@@ -2,7 +2,7 @@
 
 All notable changes to the package will be documented in this file.
 
-## [Unreleased](https://github.com/upmind/provision-provider-ssl/compare/v1.0.0...HEAD)
+## Unreleased
 
 ## [1.0.0](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.0) - 2026-10-06
 
