@@ -3,6 +3,7 @@
 #
 # Run it on main, or on a maintenance branch: vN-dev releases N.*.*, vN.M-dev releases N.M.*.
 name: Prepare release
+run-name: Prepare release v${{ inputs.version }}
 
 on:
   workflow_dispatch:
