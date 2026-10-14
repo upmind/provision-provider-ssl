@@ -11,7 +11,7 @@ use Upmind\ProvisionBase\Provider\DataSet\Rules;
  * Params for restarting domain control validation, optionally changing the method.
  *
  * A restart may rotate the confirmation value, so it returns fresh DCV instructions. To re-check
- * existing proof without disturbing it, use getInfo.
+ * existing proof without disturbing it, use checkValidation.
  *
  * @property-read string|int $order_id Provider order reference
  * @property-read string|int|null $certificate_id Secondary provider certificate reference

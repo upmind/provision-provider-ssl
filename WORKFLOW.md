@@ -66,6 +66,7 @@ A provider must follow these rules.
 | `getInfo` | Get status, DCV state and metadata. The polling target. | Admin/blueprint |
 | `downloadCertificate` | Get the issued certificate and CA chain | Client |
 | `restartValidation` | Restart DCV, optionally switching method | Client |
+| `checkValidation` | Ask the CA to check the existing DCV again | Client |
 | `reissue` | Re-key with a new CSR | Admin/blueprint |
 | `renew` | Place a new order that continues the previous one | Admin/blueprint |
 | `revoke` | Revoke an issued certificate | Admin/blueprint |
@@ -106,6 +107,9 @@ Map every order to one of the `CertificateInfoResult::STATUS_*` values:
   clear from the client area.
 - `restartValidation` takes an optional `dcv_method` and an optional `csr`. A provider that
   derives DCV values from the CSR needs the `csr` to return instructions for a new method.
+- `checkValidation` must not change the DCV method or values. Use the CA's call to re-check now,
+  if it has one. If the CA only checks on its own schedule, return the current status and say so
+  in the message. Fail clearly if the order is not waiting for DCV.
 
 ### Keys and CSRs
 

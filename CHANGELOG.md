@@ -4,6 +4,9 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+- Add `checkValidation`: ask the CA to check the existing domain control validation again, with
+  the same DCV method and values. Sectigo calls `ResendDCVEmail` without an email address. Actalis
+  checks on its own schedule, so it returns the current status
 - Sectigo: default `dcv_hash_domain` to `sectigo.com`, the suffix Sectigo's current DCV
   documentation uses. Sectigo also accepts `comodoca.com`, so records placed for earlier orders
   still validate

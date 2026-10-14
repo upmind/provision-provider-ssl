@@ -257,6 +257,36 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     /**
      * @inheritDoc
      *
+     * Actalis has no call to check DCV now: it re-checks a pending file or DNS record on its own
+     * schedule. `changedcv` restarts DCV but rejects the request's existing confirmation value
+     * (17013, "confirmation values already used"), so it always changes the value. So this reports
+     * the current status.
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
+     */
+    public function checkValidation(CertificateIdentifierParams $params): CertificateInfoResult
+    {
+        try {
+            $info = $this->infoValues((string)$params->order_id);
+
+            if ($info['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED) {
+                $this->errorResult('Domain control validation is already complete');
+            }
+
+            if ($info['status'] !== CertificateInfoResult::STATUS_PENDING_VALIDATION) {
+                $this->errorResult('Certificate order is not awaiting domain control validation');
+            }
+
+            return CertificateInfoResult::create($info)
+                ->setMessage('The certificate authority checks domain control validation automatically');
+        } catch (Throwable $e) {
+            $this->handleException($e);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     *
      * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
      */
     public function reissue(ReissueParams $params): CertificateOrderResult
