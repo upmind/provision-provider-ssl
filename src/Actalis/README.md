@@ -27,3 +27,9 @@ Actalis selects a product by certificate class and policy, so `product_code` is 
 `DV:SingleHost`, `DV:Wildcard`, `OV:SingleHost` or `OV:Wildcard`. Either half may be omitted. A
 missing class comes from `certificate_type`; a missing policy comes from whether the common name
 is a wildcard.
+
+## Terms
+
+Actalis sells SSL Server certificates on `3m` and `1y` durations only. The provider maps
+`validity_days` to the duration within 10% of it: 81–99 days to `3m` and 329–401 days to `1y`.
+Any other term, such as monthly, semi-annual or multi-year, fails with an error.

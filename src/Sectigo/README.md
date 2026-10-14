@@ -27,3 +27,12 @@ from your reseller account's price list. These ids are stable across reseller ac
 
 An invalid id fails on the first `create()` with Sectigo's error. Enable `test_mode` so trial
 orders are not billed.
+
+## Terms
+
+The API accepts these `days` values: 30, 90 and 365, and 730, 1095, 1461 and 1826 for two- to
+five-year bundles. The provider maps `validity_days` to the value within 10% of it. For example,
+360 maps to 365 and 1800 to 1826. A term more than 10% from every value fails with an error. It
+never rounds up to a longer bundle, so a misconfigured term such as 400 days cannot place a
+costlier two-year order. Each account and product accepts a subset of these values. Sectigo
+rejects a term the product does not offer.

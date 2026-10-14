@@ -14,6 +14,31 @@ use Throwable;
 class Utils
 {
     /**
+     * Percentage a purchase term may differ from the CA term it maps to. Covers how a billing cycle
+     * converts to days (e.g. a 28-day February month, 12 x 30 days for a year).
+     */
+    public const TERM_TOLERANCE_PERCENT = 10;
+
+    /**
+     * Find the CA term within the tolerance of a purchase term. Never rounds a term up past the
+     * tolerance, so a misconfigured term cannot buy a longer, costlier one.
+     *
+     * @param int[] $termDays CA terms in days, shortest first
+     *
+     * @return int|null The matching term, or null if none is within the tolerance
+     */
+    public static function matchTerm(int $validityDays, array $termDays): ?int
+    {
+        foreach ($termDays as $days) {
+            if (abs($days - $validityDays) * 100 <= $days * self::TERM_TOLERANCE_PERCENT) {
+                return $days;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Convert a purchase term in days to calendar months.
      */
     public static function daysToMonths(int $days): int
