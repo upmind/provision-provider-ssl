@@ -7,9 +7,9 @@
 #       Print the entries of a version.
 #   changelog.sh unreleased
 #       Print the Unreleased entries.
-#   changelog.sh verify
-#       Fail if a version's entries differ from the entries at its tag. A release cannot change
-#       after it is tagged, so a difference means a merge put entries under the wrong heading.
+#   changelog.sh verify <owner/repo>
+#       Fail if a version's entries differ from its GitHub release notes. A difference means a merge
+#       put entries under the wrong heading, or a correction reached only one of the two.
 set -euo pipefail
 
 file="${CHANGELOG:-CHANGELOG.md}"
@@ -52,25 +52,40 @@ notes() {
 }
 
 verify() {
-    local version tag tagged released current failed=0
+    local repo="$1" version tag released current err failed=0
+
+    # a 404 below means "not released"; a wrong repository would 404 for every version
+    if ! gh api "repos/${repo}" --silent; then
+        echo "::error file=${file}::Cannot read the ${repo} repository"
+        return 1
+    fi
+
+    err="$(mktemp)"
 
     for version in $(sed -n 's/^## \[\([^]]*\)\].*/\1/p' "$file"); do
         tag="v${version}"
-        # not released yet, e.g. on a release pull request
-        git rev-parse --quiet --verify "refs/tags/${tag}" >/dev/null || continue
 
-        tagged="$(git show "${tag}:CHANGELOG.md")" || { failed=1; continue; }
-        # a tag on another release line need not list this version
-        released="$(section "## [${version}](" - <<< "$tagged")" || continue
+        # CLICOLOR_FORCE would add colour codes to the output
+        if ! released="$(CLICOLOR_FORCE=0 gh api "repos/${repo}/releases/tags/${tag}" --jq .body 2>"$err")"; then
+            # not released yet, e.g. on a release pull request
+            grep -q 'HTTP 404' "$err" && continue
+            failed=1
+            echo "::error file=${file}::Cannot read the ${tag} release notes: $(head -n 1 "$err")"
+            continue
+        fi
+
+        # the release page editor saves CRLF line endings
+        released="${released//$'\r'/}"
         current="$(section "## [${version}](")"
 
         if [ "$current" != "$released" ]; then
             failed=1
-            echo "::error file=${file}::The ${version} entries differ from the ${tag} release. Released notes do not change; put new entries under ## Unreleased."
-            diff -u --label "${tag}" --label "${file}" <(echo "$released") <(echo "$current") || true
+            echo "::error file=${file}::The ${version} entries differ from the ${tag} release notes. Put new entries under ## Unreleased. To correct released notes, edit the GitHub release too."
+            diff -u --label "${tag} release" --label "${file}" <(echo "$released") <(echo "$current") || true
         fi
     done
 
+    rm -f "$err"
     return $failed
 }
 
@@ -93,6 +108,6 @@ case "${1:-}" in
     release) release "$2" "$3" "$4" ;;
     notes) notes "$2" ;;
     unreleased) section '## Unreleased' ;;
-    verify) verify ;;
-    *) echo "Usage: $0 release <version> <date> <owner/repo> | notes <version> | unreleased | verify" >&2; exit 1 ;;
+    verify) verify "$2" ;;
+    *) echo "Usage: $0 release <version> <date> <owner/repo> | notes <version> | unreleased | verify <owner/repo>" >&2; exit 1 ;;
 esac

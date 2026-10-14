@@ -79,11 +79,14 @@ each run. Pull requests from forks get no comment.
 
 ## Changelog check
 
-The **Changelog** CI job compares each released version's entries in `CHANGELOG.md` with the
-entries at that version's tag. Released notes do not change, so a difference fails CI. It catches
-a merge of a branch that predates a release: Git can put its Unreleased entries under the new
-version heading without a conflict. A pull request must be up to date with its target branch before
-it merges, so the check runs against the latest release.
+The **Changelog** CI job compares each released version's entries in `CHANGELOG.md` with its GitHub
+release notes, and fails on a difference. It catches a merge of a branch that predates a release:
+Git can put its Unreleased entries under the new version heading without a conflict. A pull request
+must be up to date with its target branch before it merges, so the check runs against the latest
+release.
+
+To correct a released version's notes, edit its GitHub release, then change `CHANGELOG.md` in a pull
+request to match.
 
 ## Releasing
 

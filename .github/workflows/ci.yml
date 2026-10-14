@@ -100,20 +100,21 @@ jobs:
       - name: "Check coding standards"
         run: php bin/php-cs-fixer-v3.phar fix --config=.php-cs-fixer.dist.php --dry-run --diff
 
-  # A release's notes cannot change after its tag. A merge of a branch that predates the release can
-  # put Unreleased entries under the released heading without a conflict.
+  # Each released version's entries must match its GitHub release notes. A merge of a branch that
+  # predates the release can put Unreleased entries under the released heading without a conflict.
   changelog:
     name: 'Changelog'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@v4
-        with:
-          # the tags hold the released notes
-          fetch-depth: 0
 
-      - name: "Check released notes are unchanged"
-        run: .github/scripts/changelog.sh verify
+      - name: "Check released notes match the GitHub releases"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/changelog.sh verify "$GITHUB_REPOSITORY"
 
   # Compare the package contract with the latest tag on the target release line: DataSet rules,
   # Category method signatures and composer.json require constraints. Breaking changes fail on
