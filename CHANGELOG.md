@@ -4,6 +4,8 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+## [1.0.1](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.1) - 2026-10-14
+
 - Add `Helper\Utils::matchTerm()`: match a purchase term to a CA term within 10%
 - Sectigo: map `validity_days` to the term the API accepts (30, 90, 365, 730, 1095, 1461 or 1826
   days) within 10% of it, and reject any other term
