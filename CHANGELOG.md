@@ -4,6 +4,8 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+## [1.1.0](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.1.0) - 2026-10-14
+
 - Add `checkValidation`: ask the CA to check the existing domain control validation again, with
   the same DCV method and values. Sectigo calls `ResendDCVEmail` without an email address. Actalis
   checks on its own schedule, so it returns the current status
