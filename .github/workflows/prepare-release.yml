@@ -19,8 +19,6 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
-  # start CI on the release branch; a push with GITHUB_TOKEN does not trigger it
-  actions: write
 
 jobs:
   prepare:
@@ -89,8 +87,8 @@ jobs:
             .github/scripts/changelog.sh notes "$VERSION"
             echo
             echo "Edit \`CHANGELOG.md\` on this branch to change the notes or the date before you merge."
+            echo
+            # GitHub holds CI on a pull request opened with GITHUB_TOKEN until a maintainer approves it
+            echo "CI waits for approval: click **Approve workflows to run** below."
           } > pr-body.md
           gh pr create --base "$BASE" --head "release/v$VERSION" --title "Release v$VERSION" --body-file pr-body.md
-
-      - name: "Run CI on the release branch"
-        run: gh workflow run ci.yml --ref "release/v$VERSION"
