@@ -1,6 +1,11 @@
 # Tag the merge commit of a release PR from prepare-release.yml and create the GitHub release from
 # its changelog entries. Packagist picks up the new tag.
 name: Release
+# a release pull request's title names the version; every other pull request skips the job
+run-name: >-
+  ${{ startsWith(github.event.pull_request.head.ref, 'release/v')
+  && github.event.pull_request.title
+  || format('Skipped: {0}', github.event.pull_request.title) }}
 
 on:
   pull_request:
