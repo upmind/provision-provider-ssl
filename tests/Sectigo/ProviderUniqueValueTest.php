@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Upmind\ProvisionProviders\SslCertificates\Tests\Sectigo;
 
+use Illuminate\Container\Container;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
-use Illuminate\Validation\Validator;
+use Illuminate\Validation\Factory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
 use Upmind\ProvisionBase\Exception\ProvisionFunctionError;
-use Upmind\ProvisionBase\Provider\DataSet\RuleParser;
 use Upmind\ProvisionProviders\SslCertificates\Data\CertificateOrderResult;
 use Upmind\ProvisionProviders\SslCertificates\Data\CreateParams;
 use Upmind\ProvisionProviders\SslCertificates\Data\DcvMethod;
@@ -39,11 +40,19 @@ class ProviderUniqueValueTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        // DataSets parse their rules with a Laravel validator; without a booted app, give them one
-        RuleParser::setValidator(new Validator(new Translator(new ArrayLoader(), 'en'), [], []));
+        // DataSets parse their rules through the Validator facade; without a booted app, bind one
+        $app = new Container();
+        $app->instance('validator', new Factory(new Translator(new ArrayLoader(), 'en'), $app));
+        Facade::setFacadeApplication($app);
 
         $key = KeyPairHelper::generatePrivateKey(KeyPairHelper::KEY_TYPE_ECDSA);
         self::$csr = KeyPairHelper::generateCsr($key, 'example.com');
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        Facade::clearResolvedInstances();
+        Facade::setFacadeApplication(null);
     }
 
     protected function setUp(): void
