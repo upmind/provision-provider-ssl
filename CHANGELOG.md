@@ -4,6 +4,11 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+- Sectigo: generate a new DCV `uniqueValue` for each `create`, `renew`, `reissue` and
+  `restartValidation` request, so a reused CSR no longer fails with
+  `-55 This Request Token is not unique!`. The CSR, key, CNAME name and file path stay the same.
+  The CNAME value and file content change with each request
+
 ## [1.0.1](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.1) - 2026-10-14
 
 - Add `Helper\Utils::matchTerm()`: match a purchase term to a CA term within 10%
