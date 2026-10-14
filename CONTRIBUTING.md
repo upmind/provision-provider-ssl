@@ -51,8 +51,35 @@ If the project maintainer has any additional requirements, you will find them li
 
 - **Consider our release cycle** - We try to follow [SemVer v2.0.0](http://semver.org/). Randomly breaking public APIs is not an option.
 
+- **Add a changelog entry** - Describe each user-facing change under `## Unreleased` in `CHANGELOG.md`.
+
 - **One pull request per feature** - If you want to do more than one thing, send multiple pull requests.
 
 - **Send coherent history** - Make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](http://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
+
+## Releasing
+
+Maintainers release from the Actions tab:
+
+1. Run the **Prepare release** workflow on the release branch with the new version, e.g. `1.2.0`.
+   It moves the `## Unreleased` entries in `CHANGELOG.md` under a `## [1.2.0]` heading, opens a
+   `Release v1.2.0` pull request and runs CI on it.
+2. Review the pull request. Edit `CHANGELOG.md` on its branch to change the notes or the date.
+3. Merge the pull request. The **Release** workflow tags the merge commit `v1.2.0` and creates the
+   GitHub release from the changelog entries. Packagist picks up the tag.
+
+The version must be `MAJOR.MINOR.PATCH` and `## Unreleased` must have entries. The release branch
+sets which versions it may release:
+
+| Branch | Versions | Must be greater than |
+|---|---|---|
+| `main` | any | the latest tag |
+| `vN-dev`, e.g. `v1-dev` | `N.*.*` | the latest `vN.*` tag |
+| `vN.M-dev`, e.g. `v1.2-dev` | `N.M.*` | the latest `vN.M.*` tag |
+
+A maintenance release becomes the GitHub "Latest" release only if it is the highest version. Each
+branch keeps its own `CHANGELOG.md`; copy an entry to `main` in a separate pull request if it
+belongs there too. Cut a maintenance branch from a tag that includes the release workflows, or add
+them to the branch first.
 
 **Happy coding**!
