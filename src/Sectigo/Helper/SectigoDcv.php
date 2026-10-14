@@ -11,7 +11,7 @@ use Upmind\ProvisionProviders\SslCertificates\Helper\Utils;
  */
 class SectigoDcv
 {
-    public const DEFAULT_HASH_DOMAIN = 'comodoca.com';
+    public const DEFAULT_HASH_DOMAIN = 'sectigo.com';
 
     /**
      * Build the validation file data for HTTP_CSR_HASH validation.
