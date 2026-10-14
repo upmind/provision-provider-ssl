@@ -83,7 +83,7 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
         }
 
         $dcvMethod = $params->dcv_method ?: DcvMethod::DNS;
-        $uniqueValue = $this->uniqueValueForCsr($csr);
+        $uniqueValue = $this->newUniqueValue();
 
         [$firstName, $lastName] = Utils::splitName($params->customer_name);
 
@@ -215,36 +215,40 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
             $this->errorResult('Validation state is unavailable — specify a validation method to switch to');
         }
 
-        // DCV values derive from the CSR, so instructions for a new method need it.
-        // Check before switching, so a failed request leaves the order unchanged.
+        // DCV values derive from the CSR and the order's uniqueValue. No API returns that value, so
+        // instructions need a replacement request with a new value. Check before any request, so a
+        // failed call leaves the order unchanged.
         if (!$params->csr && $targetMethod !== $currentMethod) {
             $this->errorResult('Provide the order\'s CSR to get the validation instructions for the new method');
         }
 
-        if ($params->csr && $targetMethod === DcvMethod::DNS && empty($info['common_name'])) {
-            $this->errorResult('Unable to determine the certificate common name to build the DNS record');
-        }
-
-        if ($params->csr) {
-            $this->assertCsrMatches($params->csr, ($info['common_name'] ?? null) ?: null);
-        }
-
-        $this->api()->updateDcv($params->order_id, $this->toSectigoDcvMethod($targetMethod));
-
-        $info['dcv_method'] = $targetMethod;
-        $info['dcv_status'] = CertificateInfoResult::DCV_STATUS_PENDING;
-
         if (!$params->csr) {
+            $this->api()->updateDcv($params->order_id, $this->toSectigoDcvMethod($targetMethod));
+
+            $info['dcv_status'] = CertificateInfoResult::DCV_STATUS_PENDING;
+
             return CertificateOrderResult::create($info)
                 ->setMessage('Domain validation re-triggered — the existing validation instructions remain valid');
         }
+
+        if ($targetMethod === DcvMethod::DNS && empty($info['common_name'])) {
+            $this->errorResult('Unable to determine the certificate common name to build the DNS record');
+        }
+
+        $this->assertCsrMatches($params->csr, ($info['common_name'] ?? null) ?: null);
+
+        [$data, $uniqueValue] = $this->replaceCertificate($params->order_id, $params->csr, $targetMethod);
+
+        $info['certificate_id'] = ($data['certificateID'] ?? null) ?: $info['certificate_id'];
+        $info['dcv_method'] = $targetMethod;
+        $info['dcv_status'] = CertificateInfoResult::DCV_STATUS_PENDING;
 
         return CertificateOrderResult::create(array_merge($info, $this->dcvInstructionData(
             $targetMethod,
             $params->csr,
             (string) $info['common_name'],
-            $this->uniqueValueForCsr($params->csr)
-        )))->setMessage('Domain validation restarted');
+            $uniqueValue
+        )))->setMessage('Domain validation restarted — replace any validation record you placed before');
     }
 
     /**
@@ -287,26 +291,13 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
             );
         }
 
-        $uniqueValue = $this->uniqueValueForCsr($csr);
-
-        $data = $this->api()->replaceSsl(array_filter([
-            'orderNumber' => $params->order_id,
-            'csr' => $csr,
-            'serverSoftware' => -1,
-            'isCustomerValidated' => 'Y',
-            'dcvMethod' => $this->toSectigoDcvMethod($dcvMethod),
-            'uniqueValue' => $uniqueValue,
-            'showCertificateID' => 'Y',
-        ], function ($value) {
-            return $value !== null;
-        }));
+        [$data, $uniqueValue] = $this->replaceCertificate($params->order_id, $csr, $dcvMethod);
 
         $certificateId = ($data['certificateID'] ?? null) ?: ($info['certificate_id'] ?? null);
-        $uniqueValue = (string) ((($data['uniqueValue'] ?? null) ?: $uniqueValue));
 
-        // Re-read the live order state rather than assuming a pending one: when the
-        // same CSR is resubmitted Sectigo reuses the existing validation, so the
-        // order can go straight back to processing/issued. The reissued certificate
+        // Re-read the live order state rather than assuming a pending one: a reissue
+        // with the same key can keep the existing validation, so the order can go
+        // straight back to processing/issued. The reissued certificate
         // is not signed yet, so its validity window is left for getInfo to report
         // once it issues, instead of echoing the superseded certificate's dates.
         $info = $this->fetchInfoData($params->order_id, $certificateId);
@@ -381,6 +372,28 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
         }
 
         return $this->emptyResult('Certificate order cancelled and refund requested');
+    }
+
+    /**
+     * Replace the order's certificate via AutoReplaceSSL with a new uniqueValue.
+     *
+     * @return array{0: mixed[], 1: string} The response data and the uniqueValue the order now uses
+     */
+    protected function replaceCertificate($orderId, string $csr, string $dcvMethod): array
+    {
+        $uniqueValue = $this->newUniqueValue();
+
+        $data = $this->api()->replaceSsl([
+            'orderNumber' => $orderId,
+            'csr' => $csr,
+            'serverSoftware' => -1,
+            'isCustomerValidated' => 'Y',
+            'dcvMethod' => $this->toSectigoDcvMethod($dcvMethod),
+            'uniqueValue' => $uniqueValue,
+            'showCertificateID' => 'Y',
+        ]);
+
+        return [$data, (string) ((($data['uniqueValue'] ?? null) ?: $uniqueValue))];
     }
 
     /**
@@ -729,16 +742,16 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     }
 
     /**
-     * Derive the DCV uniqueValue deterministically from the CSR.
+     * Generate a uniqueValue for one AutoApplyOrder or AutoReplaceSSL request.
      *
-     * The CNAME/file DCV token embeds this salt. Deriving it from the CSR keeps
-     * the token identical when the same CSR is resubmitted, e.g. a reissue that
-     * reuses the customer's key. The validation record placed at order time
-     * still matches, so DCV does not restart. A new CSR yields a new token.
+     * The file/CNAME DCV token embeds this value. Sectigo rejects a CSR and uniqueValue pair it
+     * has already seen (-55), so each request needs a new value, and a reused CSR gets a new token.
+     * No API returns an order's value, so the token is known only from the request that set it.
      */
-    protected function uniqueValueForCsr(string $csrPem): string
+    protected function newUniqueValue(): string
     {
-        return substr(hash('sha256', 'sectigo-dcv:' . Utils::pemToDer($csrPem)), 0, 20);
+        // 20 characters: the maximum Sectigo accepts
+        return bin2hex(random_bytes(10));
     }
 
     /**

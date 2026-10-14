@@ -36,3 +36,19 @@ five-year bundles. The provider maps `validity_days` to the value within 10% of 
 never rounds up to a longer bundle, so a misconfigured term such as 400 days cannot place a
 costlier two-year order. Each account and product accepts a subset of these values. Sectigo
 rejects a term the product does not offer.
+
+## Domain control validation
+
+The file and CNAME values derive from the CSR and a `uniqueValue` that the provider generates for
+each order, reissue and validation restart. Sectigo rejects a CSR and `uniqueValue` pair it has
+already seen, so a CSR can be reused on any number of orders and reissues. Each request gets new
+DCV values, even with the same key. The record name and file path stay the same; the CNAME value
+and file content change.
+
+No API returns an order's `uniqueValue`, so `restartValidation` cannot rebuild the current
+instructions:
+
+- Without `csr`, it calls `AutoUpdateDCV` with the current method. The `uniqueValue` and the
+  existing instructions stay the same. A method switch without `csr` fails.
+- With `csr`, it replaces the certificate request with a new `uniqueValue` and returns new
+  instructions. The customer must replace any record or file they placed before.
