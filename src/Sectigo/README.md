@@ -52,3 +52,10 @@ instructions:
   existing instructions stay the same. A method switch without `csr` fails.
 - With `csr`, it replaces the certificate request with a new `uniqueValue` and returns new
   instructions. The customer must replace any record or file they placed before.
+
+## Cancel
+
+`cancel` always requests a refund through `AutoRefund`. If Sectigo refuses it, `cancel` checks the
+order and succeeds with no refund when there is nothing left to cancel: the order is cancelled,
+rejected or revoked, or the certificate expired or was issued more than 30 days ago. Any other
+refusal or error fails.

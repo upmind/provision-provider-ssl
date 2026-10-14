@@ -12,6 +12,12 @@ All notable changes to the package will be documented in this file.
   report `dcv_status` `completed` and status `processing` instead of `pending_validation`
 - Actalis: error 510 now says another request for the certificate or CSR is still in progress. It
   no longer says to generate a new key pair
+- Sectigo: `cancel` still requests a refund first. When Sectigo refuses it, `cancel` succeeds if
+  the order has nothing left to cancel: it is cancelled, rejected or revoked, or the certificate
+  expired or was issued more than 30 days ago. Any other refusal or error still fails
+- Actalis: `cancel` still sends the cancel first. When Actalis refuses it, `cancel` succeeds if the
+  request has nothing left to cancel: it is rejected or cancelled, or its certificate is issued,
+  expired or revoked. Any other refusal or error still fails
 
 ## [1.0.2](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.2) - 2026-10-14
 
