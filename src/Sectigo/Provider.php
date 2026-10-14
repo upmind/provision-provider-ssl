@@ -35,6 +35,12 @@ use Upmind\ProvisionProviders\SslCertificates\Sectigo\Helper\SectigoDcv;
  */
 class Provider extends Category implements ProviderInterface, LogsDebugData
 {
+    /**
+     * `days` values AutoApplyOrder accepts, shortest first. Terms over one year are multi-year bundles.
+     * Each account and product accepts a subset.
+     */
+    private const TERM_DAYS = [30, 90, 365, 730, 1095, 1461, 1826];
+
     protected Configuration $configuration;
 
     /**
@@ -83,7 +89,7 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
 
         $request = array_merge(array_filter([
             'product' => $params->product_code,
-            'days' => $params->validity_days,
+            'days' => $this->mapDays($params->validity_days),
             'csr' => $csr,
             'serverSoftware' => -1,
             'isCustomerValidated' => 'Y',
@@ -536,6 +542,25 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
             'dcv_dns_record_type' => $record['type'],
             'dcv_dns_record_value' => $record['value'],
         ];
+    }
+
+    /**
+     * Map a purchase term to the Sectigo term within the tolerance.
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
+     */
+    protected function mapDays(int $validityDays): int
+    {
+        $days = Utils::matchTerm($validityDays, self::TERM_DAYS);
+
+        if ($days === null) {
+            $this->errorResult('Unsupported certificate term', [
+                'validity_days' => $validityDays,
+                'supported_days' => self::TERM_DAYS,
+            ]);
+        }
+
+        return $days;
     }
 
     /**

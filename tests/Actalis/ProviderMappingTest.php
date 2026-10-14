@@ -49,6 +49,55 @@ class ProviderMappingTest extends TestCase
     }
 
     /**
+     * @dataProvider durationProvider
+     */
+    public function testMapDuration(int $validityDays, string $expected): void
+    {
+        $this->assertSame($expected, $this->call('mapDuration', $validityDays));
+    }
+
+    /**
+     * @return mixed[]
+     */
+    public function durationProvider(): array
+    {
+        return [
+            'quarter lower tolerance' => [81, '3m'],
+            'three months' => [90, '3m'],
+            'long quarter' => [92, '3m'],
+            'quarter upper tolerance' => [99, '3m'],
+            'year lower tolerance' => [329, '1y'],
+            'twelve 30-day months' => [360, '1y'],
+            'one year' => [365, '1y'],
+            'leap year' => [366, '1y'],
+            'year upper tolerance' => [401, '1y'],
+        ];
+    }
+
+    /**
+     * @dataProvider unsupportedDurationProvider
+     */
+    public function testMapDurationRejectsUnsupportedTerm(int $validityDays): void
+    {
+        $this->expectException(ProvisionFunctionError::class);
+        $this->expectExceptionMessage('Unsupported certificate term');
+
+        $this->call('mapDuration', $validityDays);
+    }
+
+    /**
+     * @return mixed[]
+     */
+    public function unsupportedDurationProvider(): array
+    {
+        return [
+            'monthly' => [30],
+            'semi-annual' => [180],
+            'two years' => [730],
+        ];
+    }
+
+    /**
      * @dataProvider statusProvider
      */
     public function testMapStatus(?string $request, ?string $cert, ?string $msg, string $expected): void

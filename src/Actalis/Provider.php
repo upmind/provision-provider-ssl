@@ -84,15 +84,13 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     private const DCV_DNS_VALUE_PREFIX = 'actalis-dcv=';
 
     /**
-     * SSL Server certificates are only sold on three-month and one-year terms.
+     * SSL Server certificate `duration` values and their length in days, shortest first. Actalis
+     * sells three-month and one-year terms only.
      */
-    private const DURATION_THREE_MONTHS = '3m';
-    private const DURATION_ONE_YEAR = '1y';
-
-    /**
-     * Longest term, in days, still fulfilled as a three-month certificate.
-     */
-    private const THREE_MONTH_DAYS_LIMIT = 120;
+    private const DURATION_DAYS = [
+        '3m' => 90,
+        '1y' => 365,
+    ];
 
     protected Configuration $configuration;
 
@@ -584,14 +582,22 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     }
 
     /**
-     * SSL Server certificates come in three-month and one-year terms only, so anything longer is
-     * fulfilled a year at a time.
+     * Map a purchase term to the Actalis duration within the tolerance.
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
      */
     protected function mapDuration(int $validityDays): string
     {
-        return $validityDays <= self::THREE_MONTH_DAYS_LIMIT
-            ? self::DURATION_THREE_MONTHS
-            : self::DURATION_ONE_YEAR;
+        $days = Utils::matchTerm($validityDays, array_values(self::DURATION_DAYS));
+
+        if ($days === null) {
+            $this->errorResult('Unsupported certificate term', [
+                'validity_days' => $validityDays,
+                'supported_days' => array_values(self::DURATION_DAYS),
+            ]);
+        }
+
+        return (string)array_search($days, self::DURATION_DAYS, true);
     }
 
     /**
