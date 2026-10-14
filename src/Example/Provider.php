@@ -89,6 +89,16 @@ class Provider extends Category implements ProviderInterface
      *
      * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
      */
+    public function checkValidation(CertificateIdentifierParams $params): CertificateInfoResult
+    {
+        $this->errorResult('Not implemented');
+    }
+
+    /**
+     * @inheritDoc
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
+     */
     public function reissue(ReissueParams $params): CertificateOrderResult
     {
         $this->errorResult('Not implemented');

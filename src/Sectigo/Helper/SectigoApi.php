@@ -95,6 +95,18 @@ class SectigoApi
     }
 
     /**
+     * Ask Sectigo to check the order's DCV again. For a file or CNAME method this resets the check
+     * schedule. With no address, an email method resends to the last address used.
+     *
+     * @return mixed[]
+     */
+    public function resendDcvEmail($orderNumber): array
+    {
+        // ResendDCVEmail has no responseFormat argument; its native response is already URL-encoded
+        return $this->makeRequest('products/!ResendDCVEmail', ['orderNumber' => $orderNumber], [], false);
+    }
+
+    /**
      * Reissue (re-key) an order via AutoReplaceSSL.
      *
      * @param mixed[] $params

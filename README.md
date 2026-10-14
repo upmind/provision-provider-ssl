@@ -34,6 +34,7 @@ This library makes use of [upmind/provision-provider-base](https://packagist.org
 | getInfo() | [_CertificateIdentifierParams_](src/Data/CertificateIdentifierParams.php) | [_CertificateInfoResult_](src/Data/CertificateInfoResult.php) | Get the current status, metadata and DCV state of an order |
 | downloadCertificate() | [_CertificateIdentifierParams_](src/Data/CertificateIdentifierParams.php) | [_CertificateDownloadResult_](src/Data/CertificateDownloadResult.php) | Download the issued certificate + CA chain |
 | restartValidation() | [_RestartValidationParams_](src/Data/RestartValidationParams.php) | [_CertificateOrderResult_](src/Data/CertificateOrderResult.php) | Restart DCV, optionally switching method |
+| checkValidation() | [_CertificateIdentifierParams_](src/Data/CertificateIdentifierParams.php) | [_CertificateInfoResult_](src/Data/CertificateInfoResult.php) | Ask the CA to check the existing DCV again |
 | reissue() | [_ReissueParams_](src/Data/ReissueParams.php) | [_CertificateOrderResult_](src/Data/CertificateOrderResult.php) | Reissue (re-key) the certificate with a new CSR |
 | renew() | [_RenewParams_](src/Data/RenewParams.php) | [_CertificateOrderResult_](src/Data/CertificateOrderResult.php) | Renew the certificate order |
 | revoke() | [_RevokeParams_](src/Data/RevokeParams.php) | [_EmptyResult_](src/Data/EmptyResult.php) | Cryptographically revoke an issued certificate |

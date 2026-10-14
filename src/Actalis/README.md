@@ -34,6 +34,13 @@ Actalis sells SSL Server certificates on `3m` and `1y` durations only. The provi
 `validity_days` to the duration within 10% of it: 81–99 days to `3m` and 329–401 days to `1y`.
 Any other term, such as monthly, semi-annual or multi-year, fails with an error.
 
+## Check validation
+
+Actalis has no call to check DCV now. It checks a pending file or DNS record on its own schedule.
+`changedcv` restarts DCV, but it rejects the request's existing confirmation value with error
+17013, so it always changes the value. So `checkValidation` returns the current status without a
+change.
+
 ## Cancel
 
 `cancel` always sends the cancel to Actalis. If Actalis refuses it because the request is in a

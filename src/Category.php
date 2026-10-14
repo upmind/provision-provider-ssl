@@ -77,6 +77,15 @@ abstract class Category extends BaseCategory
     abstract public function restartValidation(RestartValidationParams $params): CertificateOrderResult;
 
     /**
+     * Ask the certificate authority to check the existing domain control validation again.
+     *
+     * Keeps the DCV method and values, so a record or file the customer has placed stays valid.
+     * Returns the order's status, as `getInfo` does. Use `restartValidation` to change the
+     * method or get new values.
+     */
+    abstract public function checkValidation(CertificateIdentifierParams $params): CertificateInfoResult;
+
+    /**
      * Reissue (re-key) an issued certificate with a new CSR; does not extend validity.
      */
     abstract public function reissue(ReissueParams $params): CertificateOrderResult;

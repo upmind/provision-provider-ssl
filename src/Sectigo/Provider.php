@@ -263,6 +263,31 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
      *
      * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
      */
+    public function checkValidation(CertificateIdentifierParams $params): CertificateInfoResult
+    {
+        $info = $this->fetchInfoData($params->order_id, $params->certificate_id);
+
+        if ($info['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED) {
+            $this->errorResult('Domain control validation is already complete');
+        }
+
+        if ($info['status'] !== CertificateInfoResult::STATUS_PENDING_VALIDATION) {
+            $this->errorResult('Certificate order is not awaiting domain control validation');
+        }
+
+        // Sectigo documents this call as resetting the check schedule of a file or CNAME method
+        // https://docs.sectigo.com/sps/domain-control-validation/dcv-policy.html
+        $this->api()->resendDcvEmail($params->order_id);
+
+        return CertificateInfoResult::create($info)
+            ->setMessage('Domain control validation check requested');
+    }
+
+    /**
+     * @inheritDoc
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
+     */
     public function reissue(ReissueParams $params): CertificateOrderResult
     {
         $info = $this->fetchInfoData($params->order_id, $params->certificate_id);

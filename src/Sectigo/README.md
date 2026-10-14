@@ -53,6 +53,12 @@ instructions:
 - With `csr`, it replaces the certificate request with a new `uniqueValue` and returns new
   instructions. The customer must replace any record or file they placed before.
 
+## Check validation
+
+`checkValidation` calls `ResendDCVEmail` without an email address. For a file or CNAME method,
+Sectigo documents this as resetting the schedule on which it checks the record or file. The DCV
+values stay the same.
+
 ## Cancel
 
 `cancel` always requests a refund through `AutoRefund`. If Sectigo refuses it, `cancel` checks the
