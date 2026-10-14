@@ -162,7 +162,7 @@ class ProviderUniqueValueTest extends TestCase
         $this->assertSame($file['content'], $result->dcv_file_content);
     }
 
-    public function testRestartValidationWithoutCsrRetriggersCurrentMethod(): void
+    public function testRestartValidationWithoutCsrKeepsCurrentMethod(): void
     {
         $this->stubPendingOrder();
         $this->api->expects($this->never())->method('replaceSsl');

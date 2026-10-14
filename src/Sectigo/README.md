@@ -48,7 +48,7 @@ and file content change.
 No API returns an order's `uniqueValue`, so `restartValidation` cannot rebuild the current
 instructions:
 
-- Without `csr`, it re-triggers validation with the current method. The existing instructions stay
-  valid. A method switch without `csr` fails.
+- Without `csr`, it calls `AutoUpdateDCV` with the current method. The `uniqueValue` and the
+  existing instructions stay the same. A method switch without `csr` fails.
 - With `csr`, it replaces the certificate request with a new `uniqueValue` and returns new
   instructions. The customer must replace any record or file they placed before.
