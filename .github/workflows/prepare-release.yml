@@ -1,0 +1,96 @@
+# Open a release PR: move the Unreleased changelog entries under a new version heading. Merging
+# the PR runs release.yml, which tags the merge commit and creates the GitHub release.
+#
+# Run it on main, or on a maintenance branch: vN-dev releases N.*.*, vN.M-dev releases N.M.*.
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 1.2.0 (no "v" prefix)'
+        required: true
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  # start CI on the release branch; a push with GITHUB_TOKEN does not trigger it
+  actions: write
+
+jobs:
+  prepare:
+    name: 'Prepare release'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      BASE: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Validate version"
+        run: |
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Version must be MAJOR.MINOR.PATCH, e.g. 1.2.0"
+            exit 1
+          fi
+
+          # the version prefix this branch may release: '', 'N.' or 'N.M.'
+          if ! line="$(.github/scripts/release-line.sh "$BASE" 2>/dev/null)"; then
+            echo "::error::Run this workflow on main, vN-dev or vN.M-dev, not $BASE"
+            exit 1
+          fi
+
+          if [[ "$VERSION" != "$line"* ]]; then
+            echo "::error::Branch $BASE releases ${line}* versions only, not $VERSION"
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists"
+            exit 1
+          fi
+
+          latest="$(git tag --list "v$line*" --sort=-v:refname | head -n 1)"
+          if [ -n "$latest" ] && [ "$(printf '%s\n' "${latest#v}" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::error::Version $VERSION is not greater than $latest, the latest tag on this release line"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --heads origin "release/v$VERSION" >/dev/null; then
+            echo "::error::Branch release/v$VERSION already exists"
+            exit 1
+          fi
+
+      - name: "Update changelog"
+        run: .github/scripts/changelog.sh release "$VERSION" "$(date -u +%Y-%m-%d)" "$GITHUB_REPOSITORY"
+
+      - name: "Push release branch"
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "release/v$VERSION"
+          git commit -am "Release v$VERSION"
+          git push origin "release/v$VERSION"
+
+      - name: "Open release PR"
+        run: |
+          {
+            echo "Releases v$VERSION. Merging this PR tags the merge commit and creates the GitHub release with these notes:"
+            echo
+            .github/scripts/changelog.sh notes "$VERSION"
+            echo
+            echo "Edit \`CHANGELOG.md\` on this branch to change the notes or the date before you merge."
+          } > pr-body.md
+          gh pr create --base "$BASE" --head "release/v$VERSION" --title "Release v$VERSION" --body-file pr-body.md
+
+      - name: "Run CI on the release branch"
+        run: gh workflow run ci.yml --ref "release/v$VERSION"

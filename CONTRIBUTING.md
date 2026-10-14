@@ -51,8 +51,55 @@ If the project maintainer has any additional requirements, you will find them li
 
 - **Consider our release cycle** - We try to follow [SemVer v2.0.0](http://semver.org/). Randomly breaking public APIs is not an option.
 
+- **Add a changelog entry** - Describe each user-facing change under `## Unreleased` in `CHANGELOG.md`. Start the entry with `**Breaking:**` if the change can break consumers, e.g. a behaviour change.
+
 - **One pull request per feature** - If you want to do more than one thing, send multiple pull requests.
 
 - **Send coherent history** - Make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](http://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
+
+## Semver check
+
+The **Semver** CI job compares the package contract with the latest tag on the target branch's
+release line:
+
+- **DataSet rules** of every `Params`, `Result` and provider `Configuration` DataSet. A new required
+  input field, a narrower input rule or a new result value is breaking. A removed field or another
+  rule change is possibly breaking.
+- **`Category` method signatures.**
+- **`composer.json` `require` constraints.** A constraint that no longer allows every version the
+  old one did is breaking. A new requirement is possibly breaking.
+- **`**Breaking:**` changelog entries.**
+
+Breaking findings fail pull requests into maintenance branches and release pull requests that do not
+bump the major version. On other pull requests into `main` they are warnings. A maintainer can add
+the `semver: not breaking` label to a pull request to turn possibly-breaking findings into warnings.
+
+Findings appear as annotations, in the job summary and in a pull request comment that updates on
+each run. Pull requests from forks get no comment.
+
+## Releasing
+
+Maintainers release from the Actions tab:
+
+1. Run the **Prepare release** workflow on the release branch with the new version, e.g. `1.2.0`.
+   It moves the `## Unreleased` entries in `CHANGELOG.md` under a `## [1.2.0]` heading, opens a
+   `Release v1.2.0` pull request and runs CI on it.
+2. Review the pull request. Edit `CHANGELOG.md` on its branch to change the notes or the date.
+3. Merge the pull request. The **Release** workflow tags the merge commit `v1.2.0` and creates the
+   GitHub release from the changelog entries. Packagist picks up the tag.
+
+The version must be `MAJOR.MINOR.PATCH` and `## Unreleased` must have entries. The release branch
+sets which versions it may release:
+
+| Branch | Versions | Must be greater than |
+|---|---|---|
+| `main` | any | the latest tag |
+| `vN-dev`, e.g. `v1-dev` | `N.*.*` | the latest `vN.*` tag |
+| `vN.M-dev`, e.g. `v1.2-dev` | `N.M.*` | the latest `vN.M.*` tag |
+
+A maintenance release becomes the GitHub "Latest" release only if it is the highest version. Each
+branch keeps its own `CHANGELOG.md`; copy an entry to `main` in a separate pull request if it
+belongs there too. Cut a maintenance branch from a tag that includes the release workflows, or add
+them to the branch first.
 
 **Happy coding**!
