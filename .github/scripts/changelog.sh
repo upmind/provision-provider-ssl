@@ -5,6 +5,8 @@
 #       Move the Unreleased entries under a new version heading. Fail if there are none.
 #   changelog.sh notes <version>
 #       Print the entries of a version.
+#   changelog.sh unreleased
+#       Print the Unreleased entries.
 set -euo pipefail
 
 file="${CHANGELOG:-CHANGELOG.md}"
@@ -64,5 +66,6 @@ section() {
 case "${1:-}" in
     release) release "$2" "$3" "$4" ;;
     notes) notes "$2" ;;
-    *) echo "Usage: $0 release <version> <date> <owner/repo> | notes <version>" >&2; exit 1 ;;
+    unreleased) section '## Unreleased' ;;
+    *) echo "Usage: $0 release <version> <date> <owner/repo> | notes <version> | unreleased" >&2; exit 1 ;;
 esac
