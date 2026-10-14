@@ -12,7 +12,7 @@ use Upmind\ProvisionBase\Provider\DataSet\Rules;
  *
  * @property-read string $login_name Reseller account login name
  * @property-read string $login_password Reseller account login password
- * @property-read string|null $dcv_hash_domain Domain suffix in file/CNAME DCV values; defaults to comodoca.com
+ * @property-read string|null $dcv_hash_domain Domain suffix in file/CNAME DCV values; defaults to sectigo.com
  * @property-read bool|null $test_mode Whether to place test orders (not billed, not issued)
  * @property-read bool|null $notify_customer Whether Sectigo emails the issued certificate to the customer; defaults to true
  */

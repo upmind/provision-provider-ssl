@@ -106,6 +106,20 @@ class ProviderUniqueValueTest extends TestCase
         $this->assertSame($file['content'], $result->dcv_file_content);
     }
 
+    public function testHashDomainDefaultsToSectigo(): void
+    {
+        $this->setProperty('configuration', Configuration::create([
+            'login_name' => 'login',
+            'login_password' => 'password',
+        ], false));
+        $this->api->method('applyOrder')->willReturn(['errorCode' => '0', 'orderNumber' => '1']);
+
+        $result = $this->result($this->provider->create($this->createParams(DcvMethod::FILE)));
+
+        // the second line of the validation file is the hash domain
+        $this->assertSame('sectigo.com', explode("\n", (string) $result->dcv_file_content)[1]);
+    }
+
     public function testCreateWithoutCsrReturnsGeneratedKeyPair(): void
     {
         $this->api->method('applyOrder')->willReturn(['errorCode' => '0', 'orderNumber' => '1']);

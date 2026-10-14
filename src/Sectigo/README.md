@@ -12,7 +12,7 @@ domain-subscription and ACME model rather than per-certificate resale.
 | `login_name` | Yes | Reseller account login name |
 | `login_password` | Yes | Reseller account login password |
 | `test_mode` | No | Place test orders: not billed, not issued |
-| `dcv_hash_domain` | No | Domain suffix in file/CNAME DCV values; defaults to `comodoca.com` |
+| `dcv_hash_domain` | No | Domain suffix in file/CNAME DCV values; defaults to `sectigo.com`. Sectigo also accepts `comodoca.com` |
 | `notify_customer` | No | Set `false` to stop Sectigo emailing the issued certificate to the customer; defaults to `true` |
 
 ## Product codes
