@@ -87,7 +87,7 @@ class ActalisApi
         190 => 'a CAA record on the domain forbids issuance by the certificate authority',
         230 => 'the CSR was rejected as invalid',
         240 => 'the CSR common name does not match the ordered domain',
-        510 => 'an active request already exists for this CSR — generate a new key pair',
+        510 => 'another request for this certificate or CSR is still in progress — wait for it to complete',
         530 => 'the request is not in a state that allows this — e.g. validation cannot be restarted on an already-issued order',
         610 => 'the reissue was rejected by the CA',
         620 => 'a certificate id is required to reissue',
