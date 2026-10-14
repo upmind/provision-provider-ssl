@@ -8,6 +8,14 @@ All notable changes to the package will be documented in this file.
   `restartValidation` request, so a reused CSR no longer fails with
   `-55 This Request Token is not unique!`. The CSR, key, CNAME name and file path stay the same.
   The CNAME value and file content change with each request
+- Actalis: `reissue`, `renew` and `revoke` act on the certificate the order holds now, not on a
+  stored `certificate_id` that a reissue has superseded
+- Actalis: `reissue` returns `not_before`, `not_after` and `serial_number` as `null` until the new
+  certificate issues, instead of the superseded certificate's values
+- Actalis: when Actalis accepts the existing domain validation and returns no confirmation value,
+  report `dcv_status` `completed` and status `processing` instead of `pending_validation`
+- Actalis: error 510 now says another request for the certificate or CSR is still in progress. It
+  no longer says to generate a new key pair
 
 ## [1.0.1](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.0.1) - 2026-10-14
 

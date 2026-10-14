@@ -263,7 +263,7 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     {
         try {
             $retrieve = $this->api()->retrieve(['requestId' => (string)$params->order_id]);
-            $certificateId = $params->certificate_id ?: ($retrieve['certificateId'] ?? null);
+            $certificateId = $this->currentCertificateId($retrieve, $params->certificate_id);
 
             if (!$certificateId) {
                 $this->errorResult('Certificate cannot be reissued before it has been issued', [
@@ -292,6 +292,10 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
                 $this->requireRequestId($response),
                 array_merge(
                     [
+                        // the new certificate is not issued yet; getInfo reports its details
+                        'not_before' => null,
+                        'not_after' => null,
+                        'serial_number' => null,
                         'csr' => $keyPair['generated'] ? $keyPair['csr'] : null,
                         'private_key' => $keyPair['private_key'],
                     ],
@@ -321,8 +325,10 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
                 $params->certificate_type
             );
 
-            $certificateId = $params->certificate_id
-                ?: ($this->api()->retrieve(['requestId' => (string)$params->order_id])['certificateId'] ?? null);
+            $certificateId = $this->currentCertificateId(
+                $this->api()->retrieve(['requestId' => (string)$params->order_id]),
+                $params->certificate_id
+            );
 
             if (!$certificateId) {
                 $this->errorResult('Certificate cannot be renewed before it has been issued', [
@@ -377,8 +383,10 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     public function revoke(RevokeParams $params): EmptyResult
     {
         try {
-            $certificateId = $params->certificate_id
-                ?: ($this->api()->retrieve(['requestId' => (string)$params->order_id])['certificateId'] ?? null);
+            $certificateId = $this->currentCertificateId(
+                $this->api()->retrieve(['requestId' => (string)$params->order_id]),
+                $params->certificate_id
+            );
 
             if (!$certificateId) {
                 $this->errorResult('Certificate cannot be revoked before it has been issued', [
@@ -639,7 +647,7 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
 
         // a null confirmation value means Actalis considers the domain already validated
         if ($confirmationValue === null) {
-            return $instructions;
+            return $instructions + ['dcv_status' => CertificateInfoResult::DCV_STATUS_COMPLETED];
         }
 
         if ($dcvMethod === DcvMethod::FILE) {
@@ -727,6 +735,23 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     }
 
     /**
+     * The certificate the order holds now, from `retrieve`, falling back to the stored id.
+     *
+     * A reissue issues a new certificate under a new request, so a stored `certificate_id` can name
+     * the superseded certificate.
+     *
+     * @param array<string,mixed> $retrieve
+     * @param string|int|null $storedId
+     */
+    protected function currentCertificateId(array $retrieve, $storedId): ?string
+    {
+        // Actalis returns an empty string until the certificate exists
+        $certificateId = ($retrieve['certificateId'] ?? null) ?: $storedId;
+
+        return $certificateId ? (string)$certificateId : null;
+    }
+
+    /**
      * Confirmation values come back positionally, one per requested domain.
      *
      * @param array<string,mixed> $response
@@ -783,7 +808,17 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
      */
     protected function orderResult(string $requestId, array $overrides = []): CertificateOrderResult
     {
-        return CertificateOrderResult::create(array_merge($this->infoValues($requestId), $overrides));
+        $values = array_merge($this->infoValues($requestId), $overrides);
+
+        // Actalis can report DCV for a moment after it accepts the existing validation
+        if (
+            $values['status'] === CertificateInfoResult::STATUS_PENDING_VALIDATION
+            && $values['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED
+        ) {
+            $values['status'] = CertificateInfoResult::STATUS_PROCESSING;
+        }
+
+        return CertificateOrderResult::create($values);
     }
 
     /**
