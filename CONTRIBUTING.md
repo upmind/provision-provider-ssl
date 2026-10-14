@@ -82,9 +82,11 @@ each run. Pull requests from forks get no comment.
 Maintainers release from the Actions tab:
 
 1. Run the **Prepare release** workflow on the release branch with the new version, e.g. `1.2.0`.
-   It moves the `## Unreleased` entries in `CHANGELOG.md` under a `## [1.2.0]` heading, opens a
-   `Release v1.2.0` pull request and runs CI on it.
-2. Review the pull request. Edit `CHANGELOG.md` on its branch to change the notes or the date.
+   It moves the `## Unreleased` entries in `CHANGELOG.md` under a `## [1.2.0]` heading and opens a
+   `Release v1.2.0` pull request.
+2. On the pull request, click **Approve workflows to run**. GitHub holds CI on a pull request that a
+   workflow opens until a maintainer approves it. Review the pull request. Edit `CHANGELOG.md` on its
+   branch to change the notes or the date.
 3. Merge the pull request. The **Release** workflow tags the merge commit `v1.2.0` and creates the
    GitHub release from the changelog entries. Packagist picks up the tag.
 
