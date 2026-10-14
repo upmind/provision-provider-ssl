@@ -33,3 +33,11 @@ is a wildcard.
 Actalis sells SSL Server certificates on `3m` and `1y` durations only. The provider maps
 `validity_days` to the duration within 10% of it: 81–99 days to `3m` and 329–401 days to `1y`.
 Any other term, such as monthly, semi-annual or multi-year, fails with an error.
+
+## Cancel
+
+`cancel` always sends the cancel to Actalis. If Actalis refuses it because the request is in a
+final status (350) or no longer exists (360), `cancel` checks the request and succeeds when there is
+nothing left to cancel: the request is rejected or cancelled, or its certificate is issued, expired
+or revoked. If Actalis no longer holds the request, it checks the certificate from `certificate_id`
+instead. Any other refusal or error fails.

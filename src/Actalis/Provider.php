@@ -414,12 +414,95 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     public function cancel(CancelParams $params): EmptyResult
     {
         try {
-            $this->api()->cancel((string)$params->order_id);
+            $requestId = (string)$params->order_id;
+
+            try {
+                $this->api()->cancel($requestId);
+            } catch (ProvisionFunctionError $e) {
+                // 350: the request is in a final status. 360: Actalis no longer holds the request,
+                // which it can drop 30 days after a final status.
+                $nothingToCancel = in_array($this->apiErrorCode($e), [
+                    ActalisApi::ERROR_CANCEL_INVALID_STATUS,
+                    ActalisApi::ERROR_CANCEL_NOT_FOUND,
+                ], true)
+                    ? $this->cancelRefusalReason($requestId, $params->certificate_id)
+                    : null;
+
+                if ($nothingToCancel === null) {
+                    throw $e;
+                }
+
+                return $this->emptyResult($nothingToCancel);
+            }
 
             return $this->emptyResult('Certificate order cancelled');
         } catch (Throwable $e) {
             $this->handleException($e);
         }
+    }
+
+    /**
+     * Why a refused cancel leaves nothing to cancel, or null if the request state does not explain it.
+     *
+     * REJ and ISS are final statuses. A request Actalis no longer holds falls back to the status of
+     * the certificate.
+     *
+     * @param string|int|null $certificateId
+     */
+    protected function cancelRefusalReason(string $requestId, $certificateId): ?string
+    {
+        try {
+            $retrieve = $this->api()->retrieve(['requestId' => $requestId]);
+        } catch (ProvisionFunctionError $e) {
+            return $certificateId && $this->apiErrorCode($e) === ActalisApi::ERROR_REQUEST_NOT_FOUND
+                ? $this->certificateEnd((string)$certificateId)
+                : null;
+        }
+
+        switch ($retrieve['certStatus'] ?? null) {
+            case ActalisApi::REQUEST_STATUS_REJ:
+                return $this->wasCancelled($retrieve['certMsg'] ?? null)
+                    ? 'Certificate order already cancelled'
+                    : 'Certificate order rejected; nothing to cancel';
+            case ActalisApi::REQUEST_STATUS_ISS:
+                $certificateId = $this->currentCertificateId($retrieve, $certificateId);
+
+                return ($certificateId ? $this->certificateEnd($certificateId) : null)
+                    ?? 'Certificate issued and can no longer be cancelled; nothing to cancel';
+        }
+
+        return null;
+    }
+
+    /**
+     * Why an issued certificate leaves nothing to cancel, or null for any other or unknown status.
+     */
+    protected function certificateEnd(string $certificateId): ?string
+    {
+        try {
+            $certStatus = $this->api()->certInfo($certificateId)['certStatus'] ?? null;
+        } catch (ProvisionFunctionError $e) {
+            return null;
+        }
+
+        switch ($certStatus) {
+            case ActalisApi::CERT_STATUS_EXP:
+                return 'Certificate expired; nothing to cancel';
+            case ActalisApi::CERT_STATUS_REV:
+                return 'Certificate revoked; nothing to cancel';
+            case ActalisApi::CERT_STATUS_ISS:
+            case ActalisApi::CERT_STATUS_PUB:
+                return 'Certificate issued and can no longer be cancelled; nothing to cancel';
+        }
+
+        return null;
+    }
+
+    protected function apiErrorCode(ProvisionFunctionError $e): ?int
+    {
+        $code = $e->getData()['error_code'] ?? null;
+
+        return $code !== null ? (int)$code : null;
     }
 
     /**

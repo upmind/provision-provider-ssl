@@ -7,6 +7,7 @@ namespace Upmind\ProvisionProviders\SslCertificates\Sectigo;
 use GuzzleHttp\Client;
 use phpseclib3\File\X509;
 use Throwable;
+use Upmind\ProvisionBase\Exception\ProvisionFunctionError;
 use Upmind\ProvisionBase\Provider\Contract\LogsDebugData;
 use Upmind\ProvisionBase\Provider\Contract\ProviderInterface;
 use Upmind\ProvisionBase\Provider\DataSet\AboutData;
@@ -40,6 +41,12 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
      * Each account and product accepts a subset.
      */
     private const TERM_DAYS = [30, 90, 365, 730, 1095, 1461, 1826];
+
+    /**
+     * Sectigo's refund period in days. Measured from the certificate's issue, which is no earlier
+     * than the purchase.
+     */
+    private const REFUND_WINDOW_DAYS = 30;
 
     protected Configuration $configuration;
 
@@ -364,8 +371,21 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
      */
     public function cancel(CancelParams $params): EmptyResult
     {
-        // 11 = "other" refund reason code
-        $data = $this->api()->refund($params->order_id, 11, [-20]);
+        try {
+            // 11 = "other" refund reason code
+            $data = $this->api()->refund($params->order_id, 11, [-20]);
+        } catch (ProvisionFunctionError $e) {
+            // -18 is the only refusal code AutoRefund documents; its reason is free text
+            $nothingToCancel = ($e->getData()['error_code'] ?? null) === -18
+                ? $this->refundRefusalReason($params->order_id)
+                : null;
+
+            if ($nothingToCancel === null) {
+                throw $e;
+            }
+
+            return $this->emptyResult($nothingToCancel);
+        }
 
         if ((int) $data['errorCode'] === -20) {
             return $this->emptyResult('Certificate order already cancelled');
@@ -752,6 +772,56 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     {
         // 20 characters: the maximum Sectigo accepts
         return bin2hex(random_bytes(10));
+    }
+
+    /**
+     * Why a refused refund leaves nothing to cancel, or null if the order state does not explain it.
+     *
+     * Sectigo refunds within 30 days of purchase:
+     * https://www.sectigo.com/faqs/detail/How-to-request-a-refund-return-or-exchange
+     */
+    protected function refundRefusalReason($orderId): ?string
+    {
+        try {
+            // -20 rejected, -21 revoked, -26 is tolerated as in fetchInfoData
+            $status = $this->api()->collectSsl($orderId, 0, ['showValidityPeriod' => 'Y'], [-20, -21, -26]);
+        } catch (ProvisionFunctionError $e) {
+            return null;
+        }
+
+        $statusCode = (int) $status['errorCode'];
+
+        if ($statusCode === -20) {
+            return 'Certificate order already cancelled or rejected; nothing to cancel';
+        }
+
+        if ($statusCode === -21) {
+            return 'Certificate revoked; nothing to cancel';
+        }
+
+        if ($statusCode < 1) {
+            return null;
+        }
+
+        if ($this->hasPassed($status['notAfter'] ?? null)) {
+            return 'Certificate expired; nothing to cancel';
+        }
+
+        if ($this->hasPassed($status['notBefore'] ?? null, self::REFUND_WINDOW_DAYS)) {
+            return 'Certificate issued and no longer refundable; nothing to cancel';
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether a Sectigo Unix timestamp, plus a number of days, is in the past.
+     *
+     * @param mixed $timestamp
+     */
+    protected function hasPassed($timestamp, int $days = 0): bool
+    {
+        return is_numeric($timestamp) && (int) $timestamp + $days * 86400 <= time();
     }
 
     /**

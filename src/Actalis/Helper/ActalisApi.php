@@ -56,6 +56,13 @@ class ActalisApi
     public const CERT_STATUS_EXP = 'EXP';
 
     /**
+     * Error codes the provider acts on (Partner API §6).
+     */
+    public const ERROR_CANCEL_INVALID_STATUS = 350;
+    public const ERROR_CANCEL_NOT_FOUND = 360;
+    public const ERROR_REQUEST_NOT_FOUND = 380;
+
+    /**
      * RFC 5280 revocation reason names mapped to their numeric CRLReason codes. The provider sends
      * them `R`-prefixed; see Provider::mapRevocationReason().
      *
