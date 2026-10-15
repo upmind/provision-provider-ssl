@@ -21,6 +21,11 @@ openssl pkcs12 -in partner.p12 -clcerts -nokeys -out client.crt   # client_certi
 openssl pkcs12 -in partner.p12 -nocerts -nodes  -out client.key   # client_private_key
 ```
 
+The provider accepts PEM values whose line breaks were lost or collapsed to spaces, as some
+configuration forms do, and rebuilds them. A legacy encrypted key (`Proc-Type: 4,ENCRYPTED`) needs
+its original line breaks; otherwise convert it to PKCS#8 with `openssl pkcs8 -topk8`. Before any
+request, the provider checks that the certificate and key parse and that they match.
+
 ## Product codes
 
 Actalis selects a product by certificate class and policy, so `product_code` is the pair:

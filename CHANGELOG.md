@@ -4,6 +4,13 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+- Add `Helper\PemHelper::normalize()`: rebuild PEM values whose line breaks were lost or collapsed
+  to spaces, as some configuration forms do
+- Actalis: accept a client certificate and private key whose line breaks were collapsed to spaces.
+  Before any request, check that the certificate and key parse and that the key matches the
+  certificate, with a clear error for each
+- Actalis: fix the client failing on PHP 7.4 when the private key has no passphrase
+
 ## [1.1.0](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.1.0) - 2026-10-14
 
 - Add `checkValidation`: ask the CA to check the existing domain control validation again, with

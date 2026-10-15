@@ -8,10 +8,12 @@ use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
+use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 use Upmind\ProvisionBase\Exception\ProvisionFunctionError;
 use Upmind\ProvisionProviders\SslCertificates\Actalis\Data\Configuration;
+use Upmind\ProvisionProviders\SslCertificates\Helper\PemHelper;
 
 /**
  * Actalis Partner API v2.3.3 client.
@@ -251,16 +253,13 @@ class ActalisApi
      */
     protected function makeClient(): Client
     {
-        $this->assertPrivateKeyUsable();
+        $certificate = $this->normalizePem('client_certificate', 'certificate');
+        $privateKey = $this->normalizePem('client_private_key', 'private key');
 
-        $this->certificateFile = $this->writeTempFile(
-            'actalis-client-cert-',
-            $this->configuration->client_certificate
-        );
-        $this->privateKeyFile = $this->writeTempFile(
-            'actalis-client-key-',
-            $this->configuration->client_private_key
-        );
+        $this->assertCredentialsUsable($certificate, $privateKey);
+
+        $this->certificateFile = $this->writeTempFile('actalis-client-cert-', $certificate);
+        $this->privateKeyFile = $this->writeTempFile('actalis-client-key-', $privateKey);
 
         $passphrase = $this->configuration->client_private_key_passphrase;
 
@@ -283,43 +282,70 @@ class ActalisApi
     }
 
     /**
-     * Verify the configured private key actually loads with its passphrase before cURL is invoked,
-     * so a missing or wrong passphrase (or an unreadable key) fails with a clear, actionable error
-     * up-front rather than as an opaque "cURL error 58 … no key found, wrong pass phrase" mid-
-     * handshake. The `certificate_pem` config rule cannot cover this: it is a structural regex, it
-     * rejects encrypted keys outright, and a passphrase check is inherently cross-field.
-     *
-     * openssl_pkey_get_private() applies the passphrase, so it returns false only when an encrypted
-     * key has no/the wrong passphrase, or the key itself is unreadable; an unencrypted key loads
-     * regardless of whether a (then unused) passphrase was configured.
+     * Rebuild a PEM configuration value whose line breaks were lost or collapsed to spaces.
      *
      * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
      */
-    protected function assertPrivateKeyUsable(): void
+    protected function normalizePem(string $field, string $name): string
+    {
+        try {
+            return PemHelper::normalize((string)$this->configuration->{$field});
+        } catch (InvalidArgumentException $e) {
+            throw ProvisionFunctionError::create(sprintf('The client %s is not valid PEM: %s', $name, $e->getMessage()))
+                ->withData(['configuration' => $field]);
+        }
+    }
+
+    /**
+     * Check the client certificate and private key before any request: a bad key, wrong passphrase
+     * or mismatched pair otherwise surfaces as an opaque TLS handshake failure.
+     *
+     * @throws \Upmind\ProvisionBase\Exception\ProvisionFunctionError
+     */
+    protected function assertCredentialsUsable(string $certificate, string $privateKey): void
     {
         if (!function_exists('openssl_pkey_get_private')) {
             return; // no openssl extension to validate with; let cURL surface any problem
         }
 
+        // @: a certificate that does not parse also raises a warning; the error below explains it
+        if (@openssl_x509_read($certificate) === false) {
+            throw $this->credentialsError('The client certificate could not be read', 'client_certificate');
+        }
+
         $passphrase = $this->configuration->client_private_key_passphrase;
         $passphrase = ($passphrase !== null && $passphrase !== '') ? $passphrase : null;
 
-        if (openssl_pkey_get_private($this->configuration->client_private_key, $passphrase) !== false) {
-            return;
+        // PHP 7.4 rejects a null passphrase; an empty one means none
+        $key = openssl_pkey_get_private($privateKey, $passphrase ?? '');
+
+        if ($key === false) {
+            throw $this->credentialsError(
+                $passphrase !== null
+                    ? 'The client private key could not be decrypted — check client_private_key_passphrase'
+                    : 'The client private key could not be read — if it is encrypted, set client_private_key_passphrase',
+                'client_private_key'
+            );
         }
 
-        $message = $passphrase !== null
-            ? 'The client private key could not be decrypted — check client_private_key_passphrase'
-            : 'The client private key could not be read — if it is encrypted, set client_private_key_passphrase';
+        if (!openssl_x509_check_private_key($certificate, $key)) {
+            throw $this->credentialsError(
+                'The client private key does not match the client certificate',
+                'client_private_key'
+            );
+        }
+    }
 
+    protected function credentialsError(string $message, string $field): ProvisionFunctionError
+    {
         // keep the most recent OpenSSL error, draining any earlier queued entries as we go
         $opensslError = null;
         while (($error = openssl_error_string()) !== false) {
             $opensslError = $error;
         }
 
-        throw ProvisionFunctionError::create($message)
-            ->withData(['configuration' => 'client_private_key'])
+        return ProvisionFunctionError::create($message)
+            ->withData(['configuration' => $field])
             ->withDebug(['openssl_error' => $opensslError]);
     }
 
