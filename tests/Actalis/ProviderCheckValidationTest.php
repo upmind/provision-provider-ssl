@@ -67,37 +67,61 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
-     * @dataProvider notPendingProvider
+     * @dataProvider completeProvider
      */
-    public function testFailsWhenNotAwaitingValidation(string $requestStatus, string $message): void
+    public function testAlreadyCompleteSucceedsWithTheCurrentStatus(string $requestStatus, string $status): void
     {
         $this->stubRequest($requestStatus);
 
-        $this->expectException(ProvisionFunctionError::class);
-        $this->expectExceptionMessage($message);
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
 
-        $this->provider->checkValidation($this->params());
+        $this->assertSame('Domain control validation is already complete', $result->getMessage());
+        $this->assertSame($status, $result->status);
+        $this->assertSame(CertificateInfoResult::DCV_STATUS_COMPLETED, $result->dcv_status);
     }
 
     /**
      * @return string[][]
      */
-    public function notPendingProvider(): array
+    public function completeProvider(): array
     {
         return [
-            'issued' => [ActalisApi::REQUEST_STATUS_ISS, 'already complete'],
-            'vetting' => [ActalisApi::REQUEST_STATUS_TBV, 'already complete'],
-            'rejected' => [ActalisApi::REQUEST_STATUS_REJ, 'not awaiting'],
+            'vetting' => [ActalisApi::REQUEST_STATUS_TBV, CertificateInfoResult::STATUS_PROCESSING],
+            'issued' => [ActalisApi::REQUEST_STATUS_ISS, CertificateInfoResult::STATUS_ISSUED],
         ];
     }
 
-    private function stubRequest(string $requestStatus): void
+    public function testRejectedRequestSucceedsWithTheCurrentStatus(): void
+    {
+        $this->stubRequest(ActalisApi::REQUEST_STATUS_REJ);
+
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
+
+        $this->assertSame('No domain control validation to check: the certificate order is in an error state', $result->getMessage());
+        $this->assertSame(CertificateInfoResult::STATUS_ERROR, $result->status);
+    }
+
+    public function testRevokedCertificateSucceedsWithTheCurrentStatus(): void
+    {
+        $this->stubRequest(ActalisApi::REQUEST_STATUS_ISS, '200');
+        $this->api->method('certInfo')->willReturn(['certStatus' => ActalisApi::CERT_STATUS_REV]);
+
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
+
+        $this->assertSame('No domain control validation to check: the certificate order is revoked', $result->getMessage());
+        $this->assertSame(CertificateInfoResult::STATUS_REVOKED, $result->status);
+    }
+
+    private function stubRequest(string $requestStatus, string $certificateId = ''): void
     {
         $this->api->method('retrieve')->willReturn([
             'certStatus' => $requestStatus,
             'commonName' => 'example.com',
             'domainsMap' => ['example.com' => 'dns-change'],
-            'certificateId' => '',
+            'certificateId' => $certificateId,
         ]);
     }
 

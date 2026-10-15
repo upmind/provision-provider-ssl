@@ -266,18 +266,27 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     public function checkValidation(CertificateIdentifierParams $params): CertificateInfoResult
     {
         $info = $this->fetchInfoData($params->order_id, $params->certificate_id);
+        $nothingToCheck = $this->nothingToCheck($info);
 
-        if ($info['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED) {
-            $this->errorResult('Domain control validation is already complete');
+        if ($nothingToCheck !== null) {
+            return CertificateInfoResult::create($info)->setMessage($nothingToCheck);
         }
 
-        if ($info['status'] !== CertificateInfoResult::STATUS_PENDING_VALIDATION) {
-            $this->errorResult('Certificate order is not awaiting domain control validation');
-        }
+        try {
+            // Sectigo documents this call as resetting the check schedule of a file or CNAME method
+            // https://docs.sectigo.com/sps/domain-control-validation/dcv-policy.html
+            $this->api()->resendDcvEmail($params->order_id);
+        } catch (ProvisionFunctionError $e) {
+            // the order can leave validation between the status query and the call
+            $info = $this->fetchInfoData($params->order_id, $params->certificate_id);
+            $nothingToCheck = $this->nothingToCheck($info);
 
-        // Sectigo documents this call as resetting the check schedule of a file or CNAME method
-        // https://docs.sectigo.com/sps/domain-control-validation/dcv-policy.html
-        $this->api()->resendDcvEmail($params->order_id);
+            if ($nothingToCheck === null) {
+                throw $e;
+            }
+
+            return CertificateInfoResult::create($info)->setMessage($nothingToCheck);
+        }
 
         return CertificateInfoResult::create($info)
             ->setMessage('Domain control validation check requested');
@@ -837,6 +846,22 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
         }
 
         return null;
+    }
+
+    /**
+     * Why an order has no DCV to check, or null while DCV is pending.
+     *
+     * @param mixed[] $info
+     */
+    protected function nothingToCheck(array $info): ?string
+    {
+        if ($info['status'] === CertificateInfoResult::STATUS_PENDING_VALIDATION) {
+            return $info['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED
+                ? 'Domain control validation is already complete'
+                : null;
+        }
+
+        return self::validationEndMessage($info['status']);
     }
 
     /**

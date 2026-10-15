@@ -269,12 +269,9 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
         try {
             $info = $this->infoValues((string)$params->order_id);
 
-            if ($info['dcv_status'] === CertificateInfoResult::DCV_STATUS_COMPLETED) {
-                $this->errorResult('Domain control validation is already complete');
-            }
-
             if ($info['status'] !== CertificateInfoResult::STATUS_PENDING_VALIDATION) {
-                $this->errorResult('Certificate order is not awaiting domain control validation');
+                return CertificateInfoResult::create($info)
+                    ->setMessage(self::validationEndMessage($info['status']));
             }
 
             return CertificateInfoResult::create($info)
