@@ -4,6 +4,8 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+## [1.1.1](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.1.1) - 2026-10-15
+
 - Add `Helper\PemHelper::normalize()`: rebuild PEM values whose line breaks were lost or collapsed
   to spaces, as some configuration forms do
 - Actalis: accept a client certificate and private key whose line breaks were collapsed to spaces.
