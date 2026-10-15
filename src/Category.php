@@ -106,6 +106,28 @@ abstract class Category extends BaseCategory
     abstract public function cancel(CancelParams $params): EmptyResult;
 
     /**
+     * The checkValidation message for an order that is no longer waiting for DCV.
+     */
+    protected static function validationEndMessage(string $status): string
+    {
+        if (in_array($status, [CertificateInfoResult::STATUS_PROCESSING, CertificateInfoResult::STATUS_ISSUED], true)) {
+            return 'Domain control validation is already complete';
+        }
+
+        $states = [
+            CertificateInfoResult::STATUS_CANCELLED => 'is cancelled',
+            CertificateInfoResult::STATUS_REVOKED => 'is revoked',
+            CertificateInfoResult::STATUS_EXPIRED => 'has expired',
+            CertificateInfoResult::STATUS_ERROR => 'is in an error state',
+        ];
+
+        return sprintf(
+            'No domain control validation to check: the certificate order %s',
+            $states[$status] ?? 'is not awaiting validation'
+        );
+    }
+
+    /**
      * Build a guzzle handler stack that logs requests/responses through a
      * redacting PSR-3 logger, masking key material and credentials.
      *

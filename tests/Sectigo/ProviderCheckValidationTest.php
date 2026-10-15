@@ -70,41 +70,90 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
-     * @dataProvider notPendingProvider
+     * @dataProvider completeProvider
      *
      * @param mixed[] $collect
      */
-    public function testFailsWhenNotAwaitingValidation(array $collect, string $domainStatus, string $message): void
+    public function testAlreadyCompleteSucceedsWithTheCurrentStatus(array $collect, string $status): void
     {
-        $this->stubOrder($collect, $domainStatus);
+        $this->stubOrder($collect, 'Validated');
         $this->api->expects($this->never())->method('resendDcvEmail');
 
-        $this->expectException(ProvisionFunctionError::class);
-        $this->expectExceptionMessage($message);
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
 
-        $this->provider->checkValidation($this->params());
+        $this->assertSame('Domain control validation is already complete', $result->getMessage());
+        $this->assertSame($status, $result->status);
+        $this->assertSame(CertificateInfoResult::DCV_STATUS_COMPLETED, $result->dcv_status);
     }
 
     /**
      * @return mixed[]
      */
-    public function notPendingProvider(): array
+    public function completeProvider(): array
     {
         return [
-            'issued' => [['errorCode' => '2'], 'Validated', 'already complete'],
-            'validated' => [['errorCode' => '0', 'dcvStatus' => '1'], 'Validated', 'already complete'],
-            'cancelled or rejected' => [['errorCode' => '-20'], 'Validated', 'not awaiting'],
-            'revoked' => [['errorCode' => '-21'], 'Validated', 'not awaiting'],
+            'validated' => [['errorCode' => '0', 'dcvStatus' => '1'], CertificateInfoResult::STATUS_PROCESSING],
+            'issued' => [['errorCode' => '2'], CertificateInfoResult::STATUS_ISSUED],
         ];
+    }
+
+    /**
+     * @dataProvider endedProvider
+     *
+     * @param mixed[] $collect
+     */
+    public function testEndedOrderSucceedsWithTheCurrentStatus(array $collect, string $status, string $message): void
+    {
+        $this->stubOrder($collect, 'Validated');
+        $this->api->expects($this->never())->method('resendDcvEmail');
+
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
+
+        $this->assertSame($message, $result->getMessage());
+        $this->assertSame($status, $result->status);
+    }
+
+    /**
+     * @return mixed[]
+     */
+    public function endedProvider(): array
+    {
+        return [
+            'cancelled or rejected' => [
+                ['errorCode' => '-20', 'dcvStatus' => '1'],
+                CertificateInfoResult::STATUS_CANCELLED,
+                'No domain control validation to check: the certificate order is cancelled',
+            ],
+            'revoked' => [
+                ['errorCode' => '-21', 'dcvStatus' => '1'],
+                CertificateInfoResult::STATUS_REVOKED,
+                'No domain control validation to check: the certificate order is revoked',
+            ],
+        ];
+    }
+
+    public function testValidationCompletedDuringTheCallSucceeds(): void
+    {
+        $this->api->method('collectSsl')->willReturnOnConsecutiveCalls(
+            ['errorCode' => '0', 'dcvStatus' => '0', 'fqdn' => 'example.com'],
+            ['errorCode' => '2', 'fqdn' => 'example.com']
+        );
+        $this->api->method('getMdcDomainDetails')->willReturn(['errorCode' => '0']);
+        $this->api->method('resendDcvEmail')->willThrowException($this->apiError(-160));
+
+        $result = $this->provider->checkValidation($this->params());
+        $result->autoValidation(false);
+
+        $this->assertSame('Domain control validation is already complete', $result->getMessage());
+        $this->assertSame(CertificateInfoResult::STATUS_ISSUED, $result->status);
     }
 
     public function testSectigoErrorFails(): void
     {
         $this->stubOrder(['errorCode' => '0', 'dcvStatus' => '0', 'fqdn' => 'example.com']);
-        $this->api->method('resendDcvEmail')->willThrowException(
-            (new ProvisionFunctionError('Provider API error -160: The attempt to resend DCV emails did not succeed.'))
-                ->withData(['error_code' => -160])
-        );
+        $this->api->method('resendDcvEmail')->willThrowException($this->apiError(-160));
 
         $this->expectException(ProvisionFunctionError::class);
         $this->expectExceptionMessage('error -160');
@@ -124,6 +173,12 @@ class ProviderCheckValidationTest extends TestCase
             '1_dcvMethod' => 'CNAME_CSR_HASH',
             '1_dcvStatus' => $domainStatus,
         ]);
+    }
+
+    private function apiError(int $code): ProvisionFunctionError
+    {
+        return (new ProvisionFunctionError(sprintf('Provider API error %d: message', $code)))
+            ->withData(['error_code' => $code]);
     }
 
     private function params(): CertificateIdentifierParams

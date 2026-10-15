@@ -109,7 +109,8 @@ Map every order to one of the `CertificateInfoResult::STATUS_*` values:
   derives DCV values from the CSR needs the `csr` to return instructions for a new method.
 - `checkValidation` must not change the DCV method or values. Use the CA's call to re-check now,
   if it has one. If the CA only checks on its own schedule, return the current status and say so
-  in the message. Fail clearly if the order is not waiting for DCV.
+  in the message. If DCV is no longer pending, because it is complete or the order has ended,
+  return success with the current status.
 
 ### Keys and CSRs
 
@@ -141,8 +142,10 @@ Map every order to one of the `CertificateInfoResult::STATUS_*` values:
   accepted order that can never complete.
 - Check only what the category owns: CSR integrity and scope, and the state needed to build a
   request.
-- Every function can be called in any order state. Return a clear error when the function
-  cannot act in the current state.
+- Every function can be called in any order state. If the function's goal is already met, return
+  success with the current state and a message that says so, e.g. "Certificate already revoked".
+  Identify that state positively; do not swallow errors broadly. Return a clear error when the
+  function cannot act in the current state.
 
 ## Requirements
 

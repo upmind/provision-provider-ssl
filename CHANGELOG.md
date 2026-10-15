@@ -4,6 +4,10 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+- `checkValidation` returns success with the order's current status when domain control
+  validation is no longer pending: it is complete, or the order is cancelled, revoked, expired or
+  in an error state. Errors from the certificate authority still fail
+
 ## [1.1.1](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.1.1) - 2026-10-15
 
 - Add `Helper\PemHelper::normalize()`: rebuild PEM values whose line breaks were lost or collapsed
