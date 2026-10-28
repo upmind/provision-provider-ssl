@@ -57,6 +57,15 @@ If the project maintainer has any additional requirements, you will find them li
 
 - **Send coherent history** - Make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](http://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
 
+## Code review
+
+Claude Code Review reviews pull requests and posts inline comments and a **Claude Code Review**
+check run. It does not approve or block a pull request. It skips drafts and pull requests from
+forks. A maintainer can comment `@claude review` to start a review on these.
+
+[`REVIEW.md`](REVIEW.md) sets what the review reports. The review reads it from the base or default
+branch, so a change to it applies after it merges.
+
 ## Semver check
 
 The **Semver** CI job compares the package contract with the latest tag on the target branch's
