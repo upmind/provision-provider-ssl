@@ -151,7 +151,6 @@ class ApiCredentialsTest extends TestCase
     private function property(ActalisApi $api, string $name): string
     {
         $property = new ReflectionProperty(ActalisApi::class, $name);
-        $property->setAccessible(true);
 
         return (string) $property->getValue($api);
     }

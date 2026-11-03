@@ -35,7 +35,7 @@ A docker environment is provided so you can develop and run the tooling against 
 version without installing them locally. Run `make help` to list all commands.
 
 ```bash
-make setup              # PHP 8.3; or setup-php74 / setup-php81 / setup-php82
+make setup              # PHP 8.3; or setup-php84 / setup-php85
 make shell              # interactive shell on the container
 make static-analysis    # PHPStan
 make coding-standards   # PHP-CS-Fixer (or ./fix_formatting.sh outside docker)
@@ -161,7 +161,7 @@ These are the acceptance criteria for new providers.
 - Throw (or re-throw) normal/expected errors (e.g., data/state/auth issues) as a ProvisionFunctionError using `$this->errorResult()` - any other exceptions will be considered unexpected and wrapped in a generic error with a benign message which will be unhelpful to end users
 - Result messages and error messages must be 'safe' for end users/customers to read (not contain potentially sensitive information such as credentials or references to code/classes/files etc) but should still be reasonably helpful. Do **not** expose the name of the reseller/aggregator platform in result/error messages, since these are re-sold as whitelabelled services — the certificate authority/brand is fine where it is part of the product the customer bought
 - Additional information or helpful metadata (e.g. raw API response data) should be returned in successful result debug or error data/debug
-- Support PHP 7.4; avoid PHP 8-only syntax
+- Support PHP 8.3, 8.4 and 8.5
 - Any changes to `src/Category.php` or in `src/Data/` must be discussed with Upmind prior to the PR
 - Any new 3rd-party dependencies/libraries must be approved by Upmind
 

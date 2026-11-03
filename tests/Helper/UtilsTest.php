@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Upmind\ProvisionProviders\SslCertificates\Tests\Helper;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Upmind\ProvisionProviders\SslCertificates\Helper\Utils;
 
 class UtilsTest extends TestCase
 {
-    /**
-     * @dataProvider termProvider
-     */
+    #[DataProvider('termProvider')]
     public function testMatchTerm(int $validityDays, ?int $expected): void
     {
         $this->assertSame($expected, Utils::matchTerm($validityDays, [90, 365]));
@@ -20,7 +19,7 @@ class UtilsTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function termProvider(): array
+    public static function termProvider(): array
     {
         return [
             'below lower tolerance' => [80, null],
@@ -34,10 +33,9 @@ class UtilsTest extends TestCase
     }
 
     /**
-     * @dataProvider nameProvider
-     *
      * @param string[] $expected
      */
+    #[DataProvider('nameProvider')]
     public function testSplitName(string $name, array $expected): void
     {
         $this->assertSame($expected, Utils::splitName($name));
@@ -46,7 +44,7 @@ class UtilsTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function nameProvider(): array
+    public static function nameProvider(): array
     {
         return [
             'two words' => ['Jane Smith', ['Jane', 'Smith']],

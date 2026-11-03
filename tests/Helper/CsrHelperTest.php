@@ -7,6 +7,7 @@ namespace Upmind\ProvisionProviders\SslCertificates\Tests\Helper;
 use InvalidArgumentException;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\File\X509;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Upmind\ProvisionProviders\SslCertificates\Helper\CsrHelper;
 use Upmind\ProvisionProviders\SslCertificates\Helper\KeyPairHelper;
@@ -22,10 +23,9 @@ class CsrHelperTest extends TestCase
     }
 
     /**
-     * @dataProvider validProvider
-     *
      * @param mixed[] $altNames
      */
+    #[DataProvider('validProvider')]
     public function testAcceptsMatchingCsr(string $csrName, array $altNames, ?string $expected, string $result): void
     {
         $this->assertSame($result, CsrHelper::assertValid(self::csr($csrName, $altNames), $expected));
@@ -34,7 +34,7 @@ class CsrHelperTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function validProvider(): array
+    public static function validProvider(): array
     {
         return [
             'exact' => ['example.com', [['dNSName' => 'example.com']], 'example.com', 'example.com'],
@@ -47,10 +47,9 @@ class CsrHelperTest extends TestCase
     }
 
     /**
-     * @dataProvider invalidProvider
-     *
      * @param mixed[] $altNames
      */
+    #[DataProvider('invalidProvider')]
     public function testRejectsMismatchedCsr(?string $csrName, array $altNames, string $expected, string $error): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -62,7 +61,7 @@ class CsrHelperTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function invalidProvider(): array
+    public static function invalidProvider(): array
     {
         return [
             'other domain' => ['other.com', [], 'example.com', 'does not match'],

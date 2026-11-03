@@ -20,16 +20,16 @@
         }
     },
     "require": {
-        "php": "^7.4 || ^8.0",
+        "php": "^8.3",
         "ext-curl": "*",
         "ext-json": "*",
-        "illuminate/support": "5.8.* || ^6.20 || ^10.0 || ^11.0 || ^12.0",
+        "illuminate/support": "^13.0",
         "phpseclib/phpseclib": "^3.0",
-        "upmind/provision-provider-base": "^3.7 || ^4.0"
+        "upmind/provision-provider-base": "dev-feature/base-v5-support as 5.0.0"
     },
     "require-dev": {
-        "phpstan/phpstan": "^1.10",
-        "phpunit/phpunit": "^9.6"
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^12.0 || ^13.0"
     },
     "config": {
         "sort-packages": true

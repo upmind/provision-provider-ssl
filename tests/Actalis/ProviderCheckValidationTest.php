@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -23,7 +25,7 @@ use Upmind\ProvisionProviders\SslCertificates\Data\CertificateInfoResult;
 class ProviderCheckValidationTest extends TestCase
 {
     /**
-     * @var ActalisApi&MockObject
+     * @var ActalisApi&Stub
      */
     private $api;
 
@@ -45,7 +47,7 @@ class ProviderCheckValidationTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(ActalisApi::class);
+        $this->api = $this->createStub(ActalisApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -55,8 +57,10 @@ class ProviderCheckValidationTest extends TestCase
 
     public function testReportsThePendingStatusWithoutChangingDcv(): void
     {
+        $api = $this->mockApi();
+
         $this->stubRequest(ActalisApi::REQUEST_STATUS_DCV);
-        $this->api->expects($this->never())->method('changeDcv');
+        $api->expects($this->never())->method('changeDcv');
 
         $result = $this->provider->checkValidation($this->params());
         $result->autoValidation(false);
@@ -66,9 +70,7 @@ class ProviderCheckValidationTest extends TestCase
         $this->assertSame(CertificateInfoResult::DCV_STATUS_PENDING, $result->dcv_status);
     }
 
-    /**
-     * @dataProvider completeProvider
-     */
+    #[DataProvider('completeProvider')]
     public function testAlreadyCompleteSucceedsWithTheCurrentStatus(string $requestStatus, string $status): void
     {
         $this->stubRequest($requestStatus);
@@ -84,7 +86,7 @@ class ProviderCheckValidationTest extends TestCase
     /**
      * @return string[][]
      */
-    public function completeProvider(): array
+    public static function completeProvider(): array
     {
         return [
             'vetting' => [ActalisApi::REQUEST_STATUS_TBV, CertificateInfoResult::STATUS_PROCESSING],
@@ -131,12 +133,25 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return ActalisApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(ActalisApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
+    }
+
+    /**
      * @param mixed $value
      */
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

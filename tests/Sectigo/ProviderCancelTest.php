@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -25,7 +27,7 @@ class ProviderCancelTest extends TestCase
     private const DAY = 86400;
 
     /**
-     * @var SectigoApi&MockObject
+     * @var SectigoApi&Stub
      */
     private $api;
 
@@ -47,7 +49,7 @@ class ProviderCancelTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(SectigoApi::class);
+        $this->api = $this->createStub(SectigoApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -60,21 +62,24 @@ class ProviderCancelTest extends TestCase
 
     public function testRefundsWithoutALookup(): void
     {
-        $this->api->expects($this->never())->method('collectSsl');
-        $this->api->expects($this->once())->method('refund')->with('1', 11, [-20])->willReturn(['errorCode' => '0']);
+        $api = $this->mockApi();
+
+        $api->expects($this->never())->method('collectSsl');
+        $api->expects($this->once())->method('refund')->with('1', 11, [-20])->willReturn(['errorCode' => '0']);
 
         $this->assertSame('Certificate order cancelled and refund requested', $this->cancel()->getMessage());
     }
 
     /**
-     * @dataProvider nothingToCancelProvider
-     *
      * @param mixed[] $status
      */
+    #[DataProvider('nothingToCancelProvider')]
     public function testRefusedRefundWithNothingToCancel(array $status, string $expected): void
     {
-        $this->api->expects($this->once())->method('refund')->willThrowException($this->apiError(-18));
-        $this->api->expects($this->once())->method('collectSsl')->willReturn($status);
+        $api = $this->mockApi();
+
+        $api->expects($this->once())->method('refund')->willThrowException($this->apiError(-18));
+        $api->expects($this->once())->method('collectSsl')->willReturn($status);
 
         $this->assertSame($expected, $this->cancel()->getMessage());
     }
@@ -82,7 +87,7 @@ class ProviderCancelTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function nothingToCancelProvider(): array
+    public static function nothingToCancelProvider(): array
     {
         return [
             'cancelled or rejected' => [
@@ -90,19 +95,18 @@ class ProviderCancelTest extends TestCase
                 'Certificate order already cancelled or rejected; nothing to cancel',
             ],
             'revoked' => [['errorCode' => '-21'], 'Certificate revoked; nothing to cancel'],
-            'expired' => [$this->issued(-400, -35), 'Certificate expired; nothing to cancel'],
+            'expired' => [self::issued(-400, -35), 'Certificate expired; nothing to cancel'],
             'issued after the refund period' => [
-                $this->issued(-60, 305),
+                self::issued(-60, 305),
                 'Certificate issued and no longer refundable; nothing to cancel',
             ],
         ];
     }
 
     /**
-     * @dataProvider refusedRefundProvider
-     *
      * @param mixed[] $status
      */
+    #[DataProvider('refusedRefundProvider')]
     public function testRefusedRefundOtherwiseThrows(array $status): void
     {
         $this->api->method('refund')->willThrowException($this->apiError(-18));
@@ -117,12 +121,12 @@ class ProviderCancelTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function refusedRefundProvider(): array
+    public static function refusedRefundProvider(): array
     {
         return [
             'pending validation' => [['errorCode' => '0']],
             'processing' => [['errorCode' => '-26']],
-            'issued within the refund period' => [$this->issued(-10, 355)],
+            'issued within the refund period' => [self::issued(-10, 355)],
             'issued without dates' => [['errorCode' => '2']],
         ];
     }
@@ -138,13 +142,13 @@ class ProviderCancelTest extends TestCase
         $this->cancel();
     }
 
-    /**
-     * @dataProvider otherErrorProvider
-     */
+    #[DataProvider('otherErrorProvider')]
     public function testOtherRefundErrorsThrowWithoutALookup(int $errorCode): void
     {
-        $this->api->method('refund')->willThrowException($this->apiError($errorCode));
-        $this->api->expects($this->never())->method('collectSsl');
+        $api = $this->mockApi();
+
+        $api->method('refund')->willThrowException($this->apiError($errorCode));
+        $api->expects($this->never())->method('collectSsl');
 
         $this->expectException(ProvisionFunctionError::class);
         $this->expectExceptionMessage(sprintf('error %d', $errorCode));
@@ -155,7 +159,7 @@ class ProviderCancelTest extends TestCase
     /**
      * @return int[][]
      */
-    public function otherErrorProvider(): array
+    public static function otherErrorProvider(): array
     {
         return [
             'invalid order number' => [-4],
@@ -174,7 +178,7 @@ class ProviderCancelTest extends TestCase
     /**
      * @return mixed[] CollectSSL data for an issued certificate, with dates in days from now
      */
-    private function issued(int $notBeforeDays, int $notAfterDays): array
+    private static function issued(int $notBeforeDays, int $notAfterDays): array
     {
         return [
             'errorCode' => '2',
@@ -195,12 +199,25 @@ class ProviderCancelTest extends TestCase
     }
 
     /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return SectigoApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(SectigoApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
+    }
+
+    /**
      * @param mixed $value
      */
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

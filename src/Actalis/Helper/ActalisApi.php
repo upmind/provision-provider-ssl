@@ -6,8 +6,9 @@ namespace Upmind\ProvisionProviders\SslCertificates\Actalis\Helper;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\NetworkException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ResponseException;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -403,7 +404,7 @@ class ActalisApi
     {
         try {
             $response = $this->client->request($httpMethod, $method, $options);
-        } catch (ConnectException $e) {
+        } catch (NetworkException $e) {
             throw ProvisionFunctionError::create('Unable to connect to the provider API', $e)
                 ->withData(['method' => $method]);
         } catch (RequestException $e) {
@@ -543,7 +544,7 @@ class ActalisApi
 
     protected function handleRequestException(RequestException $e, string $method): ProvisionFunctionError
     {
-        $response = $e->getResponse();
+        $response = $e instanceof ResponseException ? $e->getResponse() : null;
 
         // A RequestException carrying no response is a transport-level failure — TLS handshake,
         // client-certificate loading, DNS, timeout — not an API rejection, so there is no status

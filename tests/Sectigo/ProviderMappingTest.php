@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Upmind\ProvisionProviders\SslCertificates\Tests\Sectigo;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -12,9 +13,7 @@ use Upmind\ProvisionProviders\SslCertificates\Sectigo\Provider;
 
 class ProviderMappingTest extends TestCase
 {
-    /**
-     * @dataProvider daysProvider
-     */
+    #[DataProvider('daysProvider')]
     public function testMapDays(int $validityDays, int $expected): void
     {
         $this->assertSame($expected, $this->call('mapDays', $validityDays));
@@ -23,7 +22,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function daysProvider(): array
+    public static function daysProvider(): array
     {
         return [
             'february month' => [28, 30],
@@ -47,9 +46,7 @@ class ProviderMappingTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider unsupportedDaysProvider
-     */
+    #[DataProvider('unsupportedDaysProvider')]
     public function testMapDaysRejectsUnsupportedTerm(int $validityDays): void
     {
         $this->expectException(ProvisionFunctionError::class);
@@ -61,7 +58,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function unsupportedDaysProvider(): array
+    public static function unsupportedDaysProvider(): array
     {
         return [
             'one day' => [1],
@@ -88,7 +85,6 @@ class ProviderMappingTest extends TestCase
         $provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
 
         $reflection = new ReflectionMethod($provider, $method);
-        $reflection->setAccessible(true);
 
         return $reflection->invoke($provider, ...$args);
     }
