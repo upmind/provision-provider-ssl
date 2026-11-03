@@ -10,6 +10,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -32,7 +33,7 @@ class ProviderUniqueValueTest extends TestCase
     private static string $csr;
 
     /**
-     * @var SectigoApi&MockObject
+     * @var SectigoApi&Stub
      */
     private $api;
 
@@ -57,7 +58,7 @@ class ProviderUniqueValueTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(SectigoApi::class);
+        $this->api = $this->createStub(SectigoApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -77,8 +78,8 @@ class ProviderUniqueValueTest extends TestCase
             return ['errorCode' => '0', 'orderNumber' => (string) count($sent)];
         });
 
-        $first = $this->result($this->provider->create($this->createParams(DcvMethod::DNS)));
-        $second = $this->result($this->provider->create($this->createParams(DcvMethod::DNS)));
+        $first = $this->orderResult($this->provider->create($this->createParams(DcvMethod::DNS)));
+        $second = $this->orderResult($this->provider->create($this->createParams(DcvMethod::DNS)));
 
         $this->assertCount(2, $sent);
         $this->assertNotSame($sent[0], $sent[1]);
@@ -99,7 +100,7 @@ class ProviderUniqueValueTest extends TestCase
             'uniqueValue' => 'returned1234',
         ]);
 
-        $result = $this->result($this->provider->create($this->createParams(DcvMethod::FILE)));
+        $result = $this->orderResult($this->provider->create($this->createParams(DcvMethod::FILE)));
 
         $file = SectigoDcv::fileData(self::$csr, self::HASH_DOMAIN, 'returned1234');
         $this->assertSame($file['path'], $result->dcv_file_path);
@@ -114,7 +115,7 @@ class ProviderUniqueValueTest extends TestCase
         ], false));
         $this->api->method('applyOrder')->willReturn(['errorCode' => '0', 'orderNumber' => '1']);
 
-        $result = $this->result($this->provider->create($this->createParams(DcvMethod::FILE)));
+        $result = $this->orderResult($this->provider->create($this->createParams(DcvMethod::FILE)));
 
         // the second line of the validation file is the hash domain
         $this->assertSame('sectigo.com', explode("\n", (string) $result->dcv_file_content)[1]);
@@ -124,7 +125,7 @@ class ProviderUniqueValueTest extends TestCase
     {
         $this->api->method('applyOrder')->willReturn(['errorCode' => '0', 'orderNumber' => '1']);
 
-        $result = $this->result($this->provider->create($this->createParams(DcvMethod::DNS, null)));
+        $result = $this->orderResult($this->provider->create($this->createParams(DcvMethod::DNS, null)));
 
         $this->assertStringContainsString('BEGIN CERTIFICATE REQUEST', (string) $result->csr);
         $this->assertStringContainsString('PRIVATE KEY', (string) $result->private_key);
@@ -141,8 +142,8 @@ class ProviderUniqueValueTest extends TestCase
             return ['errorCode' => '0'];
         });
 
-        $first = $this->result($this->provider->reissue($this->reissueParams()));
-        $second = $this->result($this->provider->reissue($this->reissueParams()));
+        $first = $this->orderResult($this->provider->reissue($this->reissueParams()));
+        $second = $this->orderResult($this->provider->reissue($this->reissueParams()));
 
         $this->assertCount(2, $sent);
         $this->assertNotSame($sent[0], $sent[1]);
@@ -152,18 +153,20 @@ class ProviderUniqueValueTest extends TestCase
 
     public function testRestartValidationWithCsrReplacesWithNewUniqueValue(): void
     {
+        $api = $this->mockApi();
+
         $this->stubPendingOrder();
-        $this->api->expects($this->never())->method('updateDcv');
+        $api->expects($this->never())->method('updateDcv');
 
         $sent = null;
-        $this->api->expects($this->once())->method('replaceSsl')
+        $api->expects($this->once())->method('replaceSsl')
             ->willReturnCallback(function (array $request) use (&$sent) {
                 $this->assertSame('HTTP_CSR_HASH', $request['dcvMethod']);
                 $sent = $request['uniqueValue'];
                 return ['errorCode' => '0', 'certificateID' => '99'];
             });
 
-        $result = $this->result($this->provider->restartValidation(RestartValidationParams::create([
+        $result = $this->orderResult($this->provider->restartValidation(RestartValidationParams::create([
             'order_id' => '1',
             'dcv_method' => DcvMethod::FILE,
             'csr' => self::$csr,
@@ -178,11 +181,13 @@ class ProviderUniqueValueTest extends TestCase
 
     public function testRestartValidationWithoutCsrKeepsCurrentMethod(): void
     {
-        $this->stubPendingOrder();
-        $this->api->expects($this->never())->method('replaceSsl');
-        $this->api->expects($this->once())->method('updateDcv')->with('1', 'CNAME_CSR_HASH');
+        $api = $this->mockApi();
 
-        $result = $this->result($this->provider->restartValidation(RestartValidationParams::create([
+        $this->stubPendingOrder();
+        $api->expects($this->never())->method('replaceSsl');
+        $api->expects($this->once())->method('updateDcv')->with('1', 'CNAME_CSR_HASH');
+
+        $result = $this->orderResult($this->provider->restartValidation(RestartValidationParams::create([
             'order_id' => '1',
         ], false)));
 
@@ -193,9 +198,11 @@ class ProviderUniqueValueTest extends TestCase
 
     public function testRestartValidationMethodSwitchWithoutCsrFailsBeforeAnyChange(): void
     {
+        $api = $this->mockApi();
+
         $this->stubPendingOrder();
-        $this->api->expects($this->never())->method('replaceSsl');
-        $this->api->expects($this->never())->method('updateDcv');
+        $api->expects($this->never())->method('replaceSsl');
+        $api->expects($this->never())->method('updateDcv');
 
         $this->expectException(ProvisionFunctionError::class);
         $this->expectExceptionMessage('Provide the order\'s CSR');
@@ -254,11 +261,25 @@ class ProviderUniqueValueTest extends TestCase
         ], false);
     }
 
-    private function result(CertificateOrderResult $result): CertificateOrderResult
+    private function orderResult(CertificateOrderResult $result): CertificateOrderResult
     {
         $result->autoValidation(false);
 
         return $result;
+    }
+
+    /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return SectigoApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(SectigoApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
     }
 
     /**
@@ -267,7 +288,6 @@ class ProviderUniqueValueTest extends TestCase
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

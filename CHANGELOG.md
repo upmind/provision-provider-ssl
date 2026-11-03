@@ -4,6 +4,14 @@ All notable changes to the package will be documented in this file.
 
 ## Unreleased
 
+- **Breaking:** Require PHP 8.3; support PHP 8.3, 8.4 and 8.5
+- **Breaking:** Require Laravel 13 (`illuminate/support` ^13.0)
+- **Breaking:** Require `upmind/provision-provider-base` ^5.0
+- Update dev dependencies to `phpstan/phpstan` ^2.0 and `phpunit/phpunit` ^12.0 || ^13.0
+- Remove the Guzzle history middleware from `Category::getGuzzleHandlerStack()`. Base v5 removes
+  the request history and `getLastGuzzleRequestDebug()`
+- Actalis: report Guzzle 8 network timeouts as connection errors, as Guzzle 7 did
+
 ## [1.1.2](https://github.com/upmind/provision-provider-ssl/releases/tag/v1.1.2) - 2026-10-15
 
 - `checkValidation` returns success with the order's current status when domain control

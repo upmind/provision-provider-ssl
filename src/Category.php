@@ -132,15 +132,12 @@ abstract class Category extends BaseCategory
      * redacting PSR-3 logger, masking key material and credentials.
      *
      * We assemble the stack directly rather than delegating to the base, whose
-     * v4 implementation always attaches its own non-redacting request logger
-     * (the $debugLog argument is deprecated upstream); delegating would log
-     * every request twice and leak unredacted secrets. The history middleware
-     * is registered so getLastGuzzleRequestDebug() keeps working.
+     * implementation always attaches its own non-redacting request logger;
+     * delegating would log every request twice and leak unredacted secrets.
      */
     protected function getGuzzleHandlerStack(bool $debugLog = false): HandlerStack
     {
         $stack = HandlerStack::create();
-        $stack->push(Middleware::history($this->guzzleHistory));
 
         if (!$debugLog || !$this instanceof LogsDebugData) {
             return $stack;

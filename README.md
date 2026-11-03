@@ -4,6 +4,7 @@
 
 This provision category contains the common functions used in provisioning flows for SSL/TLS certificates on various certificate authority and reseller platforms.
 
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Functions](#functions)
@@ -15,6 +16,12 @@ This provision category contains the common functions used in provisioning flows
 - [Credits](#credits)
 - [License](#license)
 - [Upmind](#upmind)
+
+## Requirements
+
+- PHP 8.3, 8.4 or 8.5
+- Laravel 13 (`illuminate/*` ^13.0)
+- `upmind/provision-provider-base` 5
 
 ## Installation
 
@@ -56,7 +63,7 @@ See [WORKFLOW.md](WORKFLOW.md#category-contract) for the category contract: scop
 A docker environment is provided for local development against any supported PHP version:
 
 ```bash
-make setup              # PHP 8.3; or setup-php74 / setup-php81 / setup-php82
+make setup              # PHP 8.3; or setup-php84 / setup-php85
 make shell              # interactive shell on the container
 make static-analysis    # PHPStan
 make coding-standards   # PHP-CS-Fixer

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Upmind\ProvisionProviders\SslCertificates\Tests\Actalis;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -15,10 +16,9 @@ use Upmind\ProvisionProviders\SslCertificates\Data\CertificateInfoResult as Info
 class ProviderMappingTest extends TestCase
 {
     /**
-     * @dataProvider productCodeProvider
-     *
      * @param string[] $expected
      */
+    #[DataProvider('productCodeProvider')]
     public function testParseProductCode(string $code, string $commonName, ?string $type, array $expected): void
     {
         $this->assertSame($expected, $this->call('parseProductCode', $code, $commonName, $type));
@@ -27,7 +27,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function productCodeProvider(): array
+    public static function productCodeProvider(): array
     {
         return [
             'full pair' => ['OV:Wildcard', '*.example.com', null, ['OV', 'Wildcard']],
@@ -48,9 +48,7 @@ class ProviderMappingTest extends TestCase
         $this->call('parseProductCode', 'DV:Gold', 'example.com', null);
     }
 
-    /**
-     * @dataProvider durationProvider
-     */
+    #[DataProvider('durationProvider')]
     public function testMapDuration(int $validityDays, string $expected): void
     {
         $this->assertSame($expected, $this->call('mapDuration', $validityDays));
@@ -59,7 +57,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function durationProvider(): array
+    public static function durationProvider(): array
     {
         return [
             'quarter lower tolerance' => [81, '3m'],
@@ -74,9 +72,7 @@ class ProviderMappingTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider unsupportedDurationProvider
-     */
+    #[DataProvider('unsupportedDurationProvider')]
     public function testMapDurationRejectsUnsupportedTerm(int $validityDays): void
     {
         $this->expectException(ProvisionFunctionError::class);
@@ -88,7 +84,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function unsupportedDurationProvider(): array
+    public static function unsupportedDurationProvider(): array
     {
         return [
             'monthly' => [30],
@@ -97,9 +93,7 @@ class ProviderMappingTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider statusProvider
-     */
+    #[DataProvider('statusProvider')]
     public function testMapStatus(?string $request, ?string $cert, ?string $msg, string $expected): void
     {
         $this->assertSame($expected, $this->call('mapStatus', $request, $cert, $msg));
@@ -108,7 +102,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function statusProvider(): array
+    public static function statusProvider(): array
     {
         return [
             'dcv' => [ActalisApi::REQUEST_STATUS_DCV, null, null, Info::STATUS_PENDING_VALIDATION],
@@ -124,9 +118,7 @@ class ProviderMappingTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider dcvStatusProvider
-     */
+    #[DataProvider('dcvStatusProvider')]
     public function testMapDcvStatus(?string $request, ?string $expected): void
     {
         $this->assertSame($expected, $this->call('mapDcvStatus', $request));
@@ -135,7 +127,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function dcvStatusProvider(): array
+    public static function dcvStatusProvider(): array
     {
         return [
             'pending' => [ActalisApi::REQUEST_STATUS_DCV, Info::DCV_STATUS_PENDING],
@@ -145,9 +137,7 @@ class ProviderMappingTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider revocationReasonProvider
-     */
+    #[DataProvider('revocationReasonProvider')]
     public function testMapRevocationReason(?string $reason, string $expected): void
     {
         $this->assertSame($expected, $this->call('mapRevocationReason', $reason));
@@ -156,7 +146,7 @@ class ProviderMappingTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function revocationReasonProvider(): array
+    public static function revocationReasonProvider(): array
     {
         return [
             ['keyCompromise', 'R1'],
@@ -178,7 +168,6 @@ class ProviderMappingTest extends TestCase
         $provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
 
         $reflection = new ReflectionMethod($provider, $method);
-        $reflection->setAccessible(true);
 
         return $reflection->invoke($provider, ...$args);
     }

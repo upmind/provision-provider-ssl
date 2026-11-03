@@ -1071,7 +1071,7 @@ class Provider extends Category implements ProviderInterface, LogsDebugData
     {
         $codes = ActalisApi::REVOCATION_REASON_CODES;
 
-        return 'R' . ($codes[$reason] ?? $codes[ActalisApi::REVOCATION_REASON_DEFAULT]);
+        return 'R' . ($codes[$reason ?? ''] ?? $codes[ActalisApi::REVOCATION_REASON_DEFAULT]);
     }
 
     /**

@@ -45,7 +45,7 @@ If the project maintainer has any additional requirements, you will find them li
 
 - **[PSR-12 Coding Standard](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-12-coding-style-guide.md)** - The easiest way to apply the conventions is to run `make coding-standards`, or `./fix_formatting.sh` outside of docker.
 
-- **Support PHP 7.4** - This package supports `^7.4 || ^8.0`, so avoid syntax introduced in PHP 8 (union types, constructor promotion, enums, `match`, nullsafe operator). CI runs static analysis on 7.4 and 8.1-8.3.
+- **Support PHP 8.3** - This package supports `^8.3`, so avoid syntax introduced after PHP 8.3. CI runs static analysis and tests on 8.3, 8.4 and 8.5.
 
 - **Document any change in behaviour** - Make sure the `README.md` and any other relevant documentation are kept up-to-date.
 

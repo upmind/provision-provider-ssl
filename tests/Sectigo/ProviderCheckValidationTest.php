@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -23,7 +25,7 @@ use Upmind\ProvisionProviders\SslCertificates\Sectigo\Provider;
 class ProviderCheckValidationTest extends TestCase
 {
     /**
-     * @var SectigoApi&MockObject
+     * @var SectigoApi&Stub
      */
     private $api;
 
@@ -45,7 +47,7 @@ class ProviderCheckValidationTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(SectigoApi::class);
+        $this->api = $this->createStub(SectigoApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -58,8 +60,10 @@ class ProviderCheckValidationTest extends TestCase
 
     public function testAsksSectigoToCheckAPendingOrder(): void
     {
+        $api = $this->mockApi();
+
         $this->stubOrder(['errorCode' => '0', 'dcvStatus' => '0', 'fqdn' => 'example.com']);
-        $this->api->expects($this->once())->method('resendDcvEmail')->with('1')->willReturn(['errorCode' => '0']);
+        $api->expects($this->once())->method('resendDcvEmail')->with('1')->willReturn(['errorCode' => '0']);
 
         $result = $this->provider->checkValidation($this->params());
         $result->autoValidation(false);
@@ -70,14 +74,15 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
-     * @dataProvider completeProvider
-     *
      * @param mixed[] $collect
      */
+    #[DataProvider('completeProvider')]
     public function testAlreadyCompleteSucceedsWithTheCurrentStatus(array $collect, string $status): void
     {
+        $api = $this->mockApi();
+
         $this->stubOrder($collect, 'Validated');
-        $this->api->expects($this->never())->method('resendDcvEmail');
+        $api->expects($this->never())->method('resendDcvEmail');
 
         $result = $this->provider->checkValidation($this->params());
         $result->autoValidation(false);
@@ -90,7 +95,7 @@ class ProviderCheckValidationTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function completeProvider(): array
+    public static function completeProvider(): array
     {
         return [
             'validated' => [['errorCode' => '0', 'dcvStatus' => '1'], CertificateInfoResult::STATUS_PROCESSING],
@@ -99,14 +104,15 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
-     * @dataProvider endedProvider
-     *
      * @param mixed[] $collect
      */
+    #[DataProvider('endedProvider')]
     public function testEndedOrderSucceedsWithTheCurrentStatus(array $collect, string $status, string $message): void
     {
+        $api = $this->mockApi();
+
         $this->stubOrder($collect, 'Validated');
-        $this->api->expects($this->never())->method('resendDcvEmail');
+        $api->expects($this->never())->method('resendDcvEmail');
 
         $result = $this->provider->checkValidation($this->params());
         $result->autoValidation(false);
@@ -118,7 +124,7 @@ class ProviderCheckValidationTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function endedProvider(): array
+    public static function endedProvider(): array
     {
         return [
             'cancelled or rejected' => [
@@ -187,12 +193,25 @@ class ProviderCheckValidationTest extends TestCase
     }
 
     /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return SectigoApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(SectigoApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
+    }
+
+    /**
      * @param mixed $value
      */
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

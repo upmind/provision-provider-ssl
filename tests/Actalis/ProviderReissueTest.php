@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -31,7 +33,7 @@ class ProviderReissueTest extends TestCase
     private static string $csr;
 
     /**
-     * @var ActalisApi&MockObject
+     * @var ActalisApi&Stub
      */
     private $api;
 
@@ -56,7 +58,7 @@ class ProviderReissueTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(ActalisApi::class);
+        $this->api = $this->createStub(ActalisApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -66,9 +68,11 @@ class ProviderReissueTest extends TestCase
 
     public function testReissueRekeysTheOrdersLiveCertificate(): void
     {
+        $api = $this->mockApi();
+
         $this->stubRequests(ActalisApi::REQUEST_STATUS_DCV);
 
-        $this->api->expects($this->once())->method('request')
+        $api->expects($this->once())->method('request')
             ->willReturnCallback(function (array $params) {
                 $this->assertSame(self::LIVE_CERTIFICATE_ID, $params['certificateId']);
                 $this->assertSame('true', $params['isRekeying']);
@@ -83,7 +87,7 @@ class ProviderReissueTest extends TestCase
         $this->stubRequests(ActalisApi::REQUEST_STATUS_DCV);
         $this->api->method('request')->willReturn(['requestId' => '2', 'confirmationValue' => ['token']]);
 
-        $result = $this->result($this->provider->reissue($this->reissueParams()));
+        $result = $this->orderResult($this->provider->reissue($this->reissueParams()));
 
         $this->assertSame('2', $result->order_id);
         $this->assertSame(Info::STATUS_PENDING_VALIDATION, $result->status);
@@ -99,7 +103,7 @@ class ProviderReissueTest extends TestCase
         $this->stubRequests(ActalisApi::REQUEST_STATUS_DCV);
         $this->api->method('request')->willReturn(['requestId' => '2']);
 
-        $result = $this->result($this->provider->reissue($this->reissueParams()));
+        $result = $this->orderResult($this->provider->reissue($this->reissueParams()));
 
         $this->assertSame(Info::STATUS_PROCESSING, $result->status);
         $this->assertSame(Info::DCV_STATUS_COMPLETED, $result->dcv_status);
@@ -112,7 +116,7 @@ class ProviderReissueTest extends TestCase
         $this->stubRequests(ActalisApi::REQUEST_STATUS_DCV);
         $this->api->method('request')->willReturn(['requestId' => '2', 'confirmationValue' => ['token']]);
 
-        $result = $this->result($this->provider->reissue($this->reissueParams()));
+        $result = $this->orderResult($this->provider->reissue($this->reissueParams()));
 
         $this->assertNull($result->not_before);
         $this->assertNull($result->not_after);
@@ -121,8 +125,10 @@ class ProviderReissueTest extends TestCase
 
     public function testRevokeUsesTheOrdersLiveCertificate(): void
     {
+        $api = $this->mockApi();
+
         $this->stubRequests(ActalisApi::REQUEST_STATUS_ISS);
-        $this->api->expects($this->once())->method('changeStatus')
+        $api->expects($this->once())->method('changeStatus')
             ->with($this->callback(function (array $query) {
                 return $query['certificateId'] === self::LIVE_CERTIFICATE_ID && $query['operation'] === 'REV';
             }))
@@ -135,15 +141,13 @@ class ProviderReissueTest extends TestCase
     }
 
     /**
-     * @dataProvider currentCertificateIdProvider
-     *
      * @param mixed[] $retrieve
      * @param string|int|null $storedId
      */
+    #[DataProvider('currentCertificateIdProvider')]
     public function testCurrentCertificateId(array $retrieve, $storedId, ?string $expected): void
     {
         $method = new ReflectionMethod($this->provider, 'currentCertificateId');
-        $method->setAccessible(true);
 
         $this->assertSame($expected, $method->invoke($this->provider, $retrieve, $storedId));
     }
@@ -151,7 +155,7 @@ class ProviderReissueTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function currentCertificateIdProvider(): array
+    public static function currentCertificateIdProvider(): array
     {
         return [
             'live id wins over stored id' => [['certificateId' => '200'], '100', '200'],
@@ -165,7 +169,6 @@ class ProviderReissueTest extends TestCase
     {
         $api = (new ReflectionClass(ActalisApi::class))->newInstanceWithoutConstructor();
         $method = new ReflectionMethod($api, 'errorMessage');
-        $method->setAccessible(true);
 
         $message = $method->invoke($api, 510, ['msg' => 'Certificate ID or CSR found in another pending request.']);
 
@@ -208,11 +211,25 @@ class ProviderReissueTest extends TestCase
         ], false);
     }
 
-    private function result(CertificateOrderResult $result): CertificateOrderResult
+    private function orderResult(CertificateOrderResult $result): CertificateOrderResult
     {
         $result->autoValidation(false);
 
         return $result;
+    }
+
+    /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return ActalisApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(ActalisApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
     }
 
     /**
@@ -221,7 +238,6 @@ class ProviderReissueTest extends TestCase
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

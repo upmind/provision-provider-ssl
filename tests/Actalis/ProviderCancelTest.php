@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
@@ -23,7 +25,7 @@ use Upmind\ProvisionProviders\SslCertificates\Data\EmptyResult;
 class ProviderCancelTest extends TestCase
 {
     /**
-     * @var ActalisApi&MockObject
+     * @var ActalisApi&Stub
      */
     private $api;
 
@@ -45,7 +47,7 @@ class ProviderCancelTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->api = $this->createMock(ActalisApi::class);
+        $this->api = $this->createStub(ActalisApi::class);
 
         // DataSet validation needs a booted Laravel app, so these tests disable it
         $this->provider = (new ReflectionClass(Provider::class))->newInstanceWithoutConstructor();
@@ -55,17 +57,18 @@ class ProviderCancelTest extends TestCase
 
     public function testCancelsWithoutALookup(): void
     {
-        $this->api->expects($this->once())->method('cancel')->with('1')->willReturn(['errorCode' => 0]);
-        $this->api->expects($this->never())->method('retrieve');
+        $api = $this->mockApi();
+
+        $api->expects($this->once())->method('cancel')->with('1')->willReturn(['errorCode' => 0]);
+        $api->expects($this->never())->method('retrieve');
 
         $this->assertSame('Certificate order cancelled', $this->cancel()->getMessage());
     }
 
     /**
-     * @dataProvider finalStateProvider
-     *
      * @param mixed[] $retrieve
      */
+    #[DataProvider('finalStateProvider')]
     public function testRefusedCancelWithNothingToCancel(array $retrieve, ?string $certStatus, string $expected): void
     {
         $this->api->method('cancel')->willThrowException($this->apiError(ActalisApi::ERROR_CANCEL_INVALID_STATUS));
@@ -78,7 +81,7 @@ class ProviderCancelTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function finalStateProvider(): array
+    public static function finalStateProvider(): array
     {
         $issued = ['certStatus' => ActalisApi::REQUEST_STATUS_ISS, 'certificateId' => '200'];
 
@@ -105,9 +108,11 @@ class ProviderCancelTest extends TestCase
 
     public function testDroppedRequestFallsBackToTheCertificate(): void
     {
-        $this->api->method('cancel')->willThrowException($this->apiError(ActalisApi::ERROR_CANCEL_NOT_FOUND));
-        $this->api->method('retrieve')->willThrowException($this->apiError(ActalisApi::ERROR_REQUEST_NOT_FOUND));
-        $this->api->expects($this->once())->method('certInfo')->with('200')
+        $api = $this->mockApi();
+
+        $api->method('cancel')->willThrowException($this->apiError(ActalisApi::ERROR_CANCEL_NOT_FOUND));
+        $api->method('retrieve')->willThrowException($this->apiError(ActalisApi::ERROR_REQUEST_NOT_FOUND));
+        $api->expects($this->once())->method('certInfo')->with('200')
             ->willReturn(['certStatus' => ActalisApi::CERT_STATUS_EXP]);
 
         $this->assertSame('Certificate expired; nothing to cancel', $this->cancel('200')->getMessage());
@@ -123,9 +128,11 @@ class ProviderCancelTest extends TestCase
 
     public function testUnknownRequestWithoutACertificateThrows(): void
     {
-        $this->api->method('cancel')->willThrowException($this->apiError(ActalisApi::ERROR_CANCEL_NOT_FOUND));
-        $this->api->method('retrieve')->willThrowException($this->apiError(ActalisApi::ERROR_REQUEST_NOT_FOUND));
-        $this->api->expects($this->never())->method('certInfo');
+        $api = $this->mockApi();
+
+        $api->method('cancel')->willThrowException($this->apiError(ActalisApi::ERROR_CANCEL_NOT_FOUND));
+        $api->method('retrieve')->willThrowException($this->apiError(ActalisApi::ERROR_REQUEST_NOT_FOUND));
+        $api->expects($this->never())->method('certInfo');
 
         $this->expectCancelError(ActalisApi::ERROR_CANCEL_NOT_FOUND);
     }
@@ -149,13 +156,13 @@ class ProviderCancelTest extends TestCase
         $this->expectCancelError(ActalisApi::ERROR_CANCEL_INVALID_STATUS);
     }
 
-    /**
-     * @dataProvider otherErrorProvider
-     */
+    #[DataProvider('otherErrorProvider')]
     public function testOtherCancelErrorsThrowWithoutALookup(ProvisionFunctionError $error, string $message): void
     {
-        $this->api->method('cancel')->willThrowException($error);
-        $this->api->expects($this->never())->method('retrieve');
+        $api = $this->mockApi();
+
+        $api->method('cancel')->willThrowException($error);
+        $api->expects($this->never())->method('retrieve');
 
         $this->expectException(ProvisionFunctionError::class);
         $this->expectExceptionMessage($message);
@@ -166,10 +173,10 @@ class ProviderCancelTest extends TestCase
     /**
      * @return mixed[]
      */
-    public function otherErrorProvider(): array
+    public static function otherErrorProvider(): array
     {
         return [
-            'internal error' => [$this->apiError(370), 'error 370'],
+            'internal error' => [self::apiError(370), 'error 370'],
             'connection error' => [
                 ProvisionFunctionError::create('Unable to connect to the provider API'),
                 'Unable to connect',
@@ -193,10 +200,24 @@ class ProviderCancelTest extends TestCase
         $this->cancel($certificateId);
     }
 
-    private function apiError(int $code): ProvisionFunctionError
+    private static function apiError(int $code): ProvisionFunctionError
     {
         return ProvisionFunctionError::create(sprintf('Provider API error %d: message', $code))
             ->withData(['error_code' => $code]);
+    }
+
+    /**
+     * Replace the stub API with a mock, for tests that set expectations.
+     *
+     * @return ActalisApi&MockObject
+     */
+    private function mockApi(): MockObject
+    {
+        $api = $this->createMock(ActalisApi::class);
+        $this->api = $api;
+        $this->setProperty('api', $api);
+
+        return $api;
     }
 
     /**
@@ -205,7 +226,6 @@ class ProviderCancelTest extends TestCase
     private function setProperty(string $name, $value): void
     {
         $property = new ReflectionProperty(Provider::class, $name);
-        $property->setAccessible(true);
         $property->setValue($this->provider, $value);
     }
 }

@@ -6,6 +6,7 @@ namespace Upmind\ProvisionProviders\SslCertificates\Tests\Helper;
 
 use InvalidArgumentException;
 use phpseclib3\Crypt\EC;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Upmind\ProvisionProviders\SslCertificates\Helper\PemHelper;
 
@@ -84,9 +85,7 @@ class PemHelperTest extends TestCase
         PemHelper::normalize($this->collapse($pem));
     }
 
-    /**
-     * @dataProvider invalidProvider
-     */
+    #[DataProvider('invalidProvider')]
     public function testInvalidValueFails(string $pem, string $message): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -98,7 +97,7 @@ class PemHelperTest extends TestCase
     /**
      * @return string[][]
      */
-    public function invalidProvider(): array
+    public static function invalidProvider(): array
     {
         return [
             'no block' => ['MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA', 'No PEM block found'],
